@@ -1,1242 +1,413 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kano 模型問卷分析工具</title>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap"
-    rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
-  <style>
-    :root {
-      --bg: #f8fafc;
-      --surface: #fff;
-      --surface2: #f1f5f9;
-      --border: #e2e8f0;
-      --border2: #cbd5e1;
-      --text: #0f172a;
-      --text2: #475569;
-      --text3: #94a3b8;
-      --accent: #4f46e5;
-      --accent2: #6366f1;
-      --green: #16a34a;
-      --red: #dc2626;
-      --cat-a: #3b82f6;
-      --cat-o: #f97316;
-      --cat-m: #ef4444;
-      --cat-i: #64748b;
-      --cat-r: #10b981;
-      --cat-q: #8b5cf6;
-      --radius: 12px;
-      --radius-sm: 8px;
-      --shadow: 0 1px 3px rgba(0, 0, 0, .08), 0 1px 2px rgba(0, 0, 0, .06);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, .07), 0 2px 4px -1px rgba(0, 0, 0, .06);
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html,
-    body {
-      height: 100%;
-    }
-
-    body {
-      font-family: 'Noto Sans TC', -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--border2);
-      border-radius: 3px;
-    }
-
-    /* Layout */
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-
-    #header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 0 20px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      height: 52px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      flex-shrink: 0;
-    }
-
-    .logo {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent);
-      margin-right: 12px;
-      white-space: nowrap;
-    }
-
-    .nav-tabs {
-      display: flex;
-      gap: 2px;
-      overflow-x: auto;
-      flex: 1;
-    }
-
-    .nav-tab {
-      padding: 6px 14px;
-      border: none;
-      background: transparent;
-      color: var(--text2);
-      font-size: 13px;
-      font-weight: 500;
-      font-family: 'Noto Sans TC', sans-serif;
-      cursor: pointer;
-      border-radius: var(--radius-sm);
-      white-space: nowrap;
-      transition: all .15s;
-    }
-
-    .nav-tab:hover {
-      background: var(--surface2);
-      color: var(--text);
-    }
-
-    .nav-tab.active {
-      background: rgba(79, 70, 229, .1);
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    #header-actions {
-      margin-left: auto;
-    }
-
-    #main {
-      flex: 1;
-      overflow: auto;
-      padding: 20px;
-    }
-
-    .tab-panel {
-      display: none;
-    }
-
-    .tab-panel.active {
-      display: block;
-    }
-
-    /* 共用元件 */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      box-shadow: var(--shadow);
-    }
-
-    .card-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 14px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      font-family: 'Noto Sans TC', sans-serif;
-      border: 1px solid var(--border2);
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      transition: all .15s;
-      white-space: nowrap;
-    }
-
-    .btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .btn:disabled {
-      opacity: .4;
-      cursor: not-allowed;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-
-    .btn-primary:hover {
-      background: var(--accent2);
-      border-color: var(--accent2);
-      color: #fff;
-    }
-
-    .btn-sm {
-      padding: 5px 10px;
-      font-size: 12px;
-    }
-
-    .btn-green {
-      background: #dcfce7;
-      color: #15803d;
-      border-color: #86efac;
-    }
-
-    .btn-green:hover {
-      background: #bbf7d0;
-      color: #166534;
-    }
-
-    .btn-purple {
-      background: #ede9fe;
-      color: #6d28d9;
-      border-color: #c4b5fd;
-    }
-
-    .btn-purple:hover {
-      background: #ddd6fe;
-      color: #5b21b6;
-    }
-
-    .btn-blue {
-      background: #dbeafe;
-      color: #1d4ed8;
-      border-color: #93c5fd;
-    }
-
-    .btn-blue:hover {
-      background: #bfdbfe;
-      color: #1e40af;
-    }
-
-    input[type="text"],
-    input[type="password"],
-    input[type="date"],
-    textarea,
-    select {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-family: 'Noto Sans TC', sans-serif;
-      font-size: 13px;
-      padding: 8px 12px;
-      width: 100%;
-      outline: none;
-      transition: border-color .15s;
-    }
-
-    input:focus,
-    textarea:focus,
-    select:focus {
-      border-color: var(--accent);
-      background: #fff;
-    }
-
-    textarea {
-      resize: vertical;
-    }
-
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text2);
-      margin-bottom: 5px;
-    }
-
-    .form-group {
-      margin-bottom: 14px;
-    }
-
-    .badge {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 4px;
-      font-family: 'IBM Plex Mono', monospace;
-    }
-
-    .badge-pos {
-      background: #dcfce7;
-      color: #15803d;
-    }
-
-    .badge-neg {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .badge-a {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .badge-o {
-      background: #ffedd5;
-      color: #9a3412;
-    }
-
-    .badge-m {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .badge-i {
-      background: #f1f5f9;
-      color: #475569;
-    }
-
-    .badge-r {
-      background: #d1fae5;
-      color: #065f46;
-    }
-
-    .badge-q {
-      background: #ede9fe;
-      color: #5b21b6;
-    }
-
-    /* Toast */
-    #toast-container {
-      position: fixed;
-      top: 60px;
-      right: 16px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-    }
-
-    .toast {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 10px 14px;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: var(--shadow-md);
-      pointer-events: auto;
-      animation: toastIn .25s ease;
-      max-width: 340px;
-    }
-
-    .toast.success {
-      border-left: 3px solid var(--green);
-    }
-
-    .toast.error {
-      border-left: 3px solid var(--red);
-    }
-
-    .toast.info {
-      border-left: 3px solid var(--accent);
-    }
-
-    @keyframes toastIn {
-      from {
-        opacity: 0;
-        transform: translateX(16px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    /* Generator */
-    #gen-layout {
-      display: grid;
-      grid-template-columns: 1fr 420px;
-      gap: 20px;
-    }
-
-    .upload-zone {
-      border: 2px dashed var(--border);
-      border-radius: var(--radius-sm);
-      padding: 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all .15s;
-      position: relative;
-    }
-
-    .upload-zone:hover {
-      border-color: var(--accent);
-      background: rgba(79, 70, 229, .03);
-    }
-
-    .upload-zone input {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
-      height: 100%;
-    }
-
-    .file-previews {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      margin-top: 10px;
-      padding-bottom: 4px;
-    }
-
-    .file-thumb {
-      position: relative;
-      width: 80px;
-      height: 64px;
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-      flex-shrink: 0;
-      border: 1px solid var(--border);
-    }
-
-    .file-thumb img,
-    .file-thumb video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .file-del {
-      position: absolute;
-      top: 3px;
-      right: 3px;
-      background: rgba(220, 38, 38, .85);
-      color: #fff;
-      border: none;
-      border-radius: 3px;
-      width: 18px;
-      height: 18px;
-      font-size: 10px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .q-card {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 14px 16px;
-      cursor: pointer;
-      transition: all .15s;
-      background: var(--surface2);
-      margin-bottom: 8px;
-    }
-
-    .q-card:hover {
-      box-shadow: var(--shadow-md);
-      background: var(--surface);
-    }
-
-    .q-card.selected {
-      border-color: var(--accent);
-      background: rgba(79, 70, 229, .04);
-      box-shadow: 0 0 0 2px rgba(79, 70, 229, .2);
-    }
-
-    .q-card-head {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-      flex-wrap: wrap;
-    }
-
-    .q-card-text {
-      font-weight: 700;
-      color: var(--text);
-      font-size: 14px;
-      margin-bottom: 6px;
-    }
-
-    .q-card-reason {
-      font-size: 12px;
-      color: var(--text2);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 10px;
-      line-height: 1.5;
-    }
-
-    .amior-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-      padding: 12px 16px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      margin-bottom: 14px;
-    }
-
-    .amior-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-      flex-shrink: 0;
-    }
-
-    /* 判讀指南 — 完整顯示理由文字 */
-    .guide-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 16px;
-      margin-top: 20px;
-    }
-
-    .guide-col h4 {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text3);
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .guide-row {
-      margin-bottom: 12px;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .guide-row .resp {
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .guide-row .arrow {
-      color: var(--text3);
-      margin: 0 4px;
-    }
-
-    .guide-row .cat {
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    /* ★ 修正：reason 完整顯示，不截斷 */
-    .guide-reason {
-      font-size: 11px;
-      color: var(--text2);
-      display: block;
-      margin-top: 4px;
-      padding-left: 2px;
-      line-height: 1.6;
-      white-space: normal;
-      word-break: break-word;
-    }
-
-    .refine-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      background: rgba(79, 70, 229, .05);
-      border: 1px solid rgba(79, 70, 229, .2);
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      margin-top: 14px;
-    }
-
-    .refine-target-badge {
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 4px;
-      background: rgba(79, 70, 229, .12);
-      color: var(--accent);
-      white-space: nowrap;
-      font-family: 'IBM Plex Mono', monospace;
-    }
-
-    /* Modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, .55);
-      z-index: 8000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-
-    .modal-box {
-      background: var(--surface);
-      border-radius: var(--radius);
-      max-width: 920px;
-      width: 100%;
-      max-height: 90vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      box-shadow: var(--shadow-md);
-    }
-
-    .modal-head {
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-head h3 {
-      font-size: 15px;
-      font-weight: 700;
-    }
-
-    .modal-body {
-      padding: 20px;
-      overflow: auto;
-    }
-
-    /* Dashboard */
-    #dash-layout {
-      display: grid;
-      grid-template-columns: 280px 1fr;
-      gap: 20px;
-    }
-
-    .stat-box {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 14px;
-      text-align: center;
-    }
-
-    .stat-num {
-      font-size: 30px;
-      font-weight: 900;
-      font-family: 'IBM Plex Mono', monospace;
-    }
-
-    .stat-lbl {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text3);
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-
-    /* 圖表看板的圖例列 */
-    .chart-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      justify-content: center;
-      margin-bottom: 8px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text2);
-    }
-
-    .chart-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .legend-line {
-      width: 28px;
-      height: 3px;
-      border-radius: 2px;
-      display: inline-block;
-    }
-
-    /* ★ 題目清單表格（看板 & 報告共用） */
-    .q-table-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 14px;
-    }
-
-    .q-tbl-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 10px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      transition: all .15s;
-    }
-
-    .q-tbl-item:hover {
-      background: var(--surface);
-      box-shadow: var(--shadow);
-    }
-
-    .q-tbl-id {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text3);
-      flex-shrink: 0;
-      padding-top: 2px;
-    }
-
-    .q-tbl-name {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text);
-      word-break: break-word;
-    }
-
-    /* Survey */
-    .survey-item {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-left: 3px solid transparent;
-      border-radius: var(--radius-sm);
-      padding: 16px;
-      margin-bottom: 10px;
-    }
-
-    .survey-item.pos {
-      border-left-color: var(--green);
-    }
-
-    .survey-item.neg {
-      border-left-color: var(--red);
-    }
-
-    .s-head {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-      justify-content: space-between;
-      flex-wrap: wrap;
-    }
-
-    .s-title {
-      font-size: 15px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .si-badge {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      padding: 3px 10px;
-      border-radius: 20px;
-    }
-
-    .dist-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 12px;
-    }
-
-    .dist-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    /* Report */
-    #report-wrapper {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    #report-content {
-      background: #fff;
-      color: #1e293b;
-      padding: 40px;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-md);
-      font-family: 'Noto Sans TC', sans-serif;
-    }
-
-    #report-content h1 {
-      font-size: 28px;
-      font-weight: 900;
-      border-bottom: 3px solid #4f46e5;
-      padding-bottom: 12px;
-      margin-bottom: 18px;
-    }
-
-    #report-content h2 {
-      font-size: 20px;
-      font-weight: 700;
-      border-left: 4px solid #10b981;
-      padding-left: 12px;
-      margin: 32px 0 14px;
-    }
-
-    #report-content .r-meta {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      font-size: 13px;
-      color: #64748b;
-      margin-bottom: 24px;
-    }
-
-    #report-content .r-grid2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 20px;
-    }
-
-    #report-content .r-col {
-      padding: 18px;
-      font-size: 13px;
-      white-space: pre-wrap;
-      line-height: 1.7;
-    }
-
-    #report-content .r-col:first-child {
-      background: #eef2ff;
-      border-right: 1px solid #e2e8f0;
-    }
-
-    #report-content .r-col h3 {
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .r-stage {
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 20px;
-    }
-
-    .r-stage-head {
-      padding: 16px 20px;
-      position: relative;
-    }
-
-    .r-stage-body {
-      padding: 16px 20px;
-    }
-
-    .r-stage-badge {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 20px;
-      margin-bottom: 6px;
-    }
-
-    .r-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px;
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      margin-bottom: 8px;
-    }
-
-    /* 空狀態 */
-    .empty-state {
-      text-align: center;
-      padding: 48px 20px;
-      color: var(--text3);
-    }
-
-    .empty-icon {
-      font-size: 44px;
-      opacity: .3;
-      margin-bottom: 10px;
-    }
-
-    /* Spinner */
-    .spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255, 255, 255, .3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .6s linear infinite;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    /* JSON */
-    #json-view {
-      background: #0f172a;
-      color: #34d399;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 12px;
-      padding: 16px;
-      border-radius: var(--radius-sm);
-      white-space: pre;
-      overflow: auto;
-      min-height: 400px;
-      max-height: 75vh;
-      border: 1px solid var(--border);
-    }
-
-    /* RWD */
-    @media(max-width:900px) {
-
-      #gen-layout,
-      #dash-layout {
-        grid-template-columns: 1fr;
-      }
-
-      .guide-grid,
-      .q-table-grid {
-        grid-template-columns: 1fr;
-      }
-
-      #report-content .r-meta,
-      #report-content .r-grid2 {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kano 模型問卷分析工具</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+<style>
+:root{
+  --bg:#f8fafc;--surface:#fff;--surface2:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+  --accent:#4f46e5;--accent2:#6366f1;
+  --green:#16a34a;--red:#dc2626;
+  --cat-a:#3b82f6;--cat-o:#f97316;--cat-m:#ef4444;
+  --cat-i:#64748b;--cat-r:#10b981;--cat-q:#8b5cf6;
+  --radius:12px;--radius-sm:8px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -1px rgba(0,0,0,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'Noto Sans TC',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* Layout */
+#app{display:flex;flex-direction:column;height:100vh;}
+#header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:4px;height:52px;position:sticky;top:0;z-index:100;flex-shrink:0;}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--accent);margin-right:12px;white-space:nowrap;}
+.nav-tabs{display:flex;gap:2px;overflow-x:auto;flex:1;}
+.nav-tab{padding:6px 14px;border:none;background:transparent;color:var(--text2);font-size:13px;font-weight:500;font-family:'Noto Sans TC',sans-serif;cursor:pointer;border-radius:var(--radius-sm);white-space:nowrap;transition:all .15s;}
+.nav-tab:hover{background:var(--surface2);color:var(--text);}
+.nav-tab.active{background:rgba(79,70,229,.1);color:var(--accent);font-weight:700;}
+#header-actions{margin-left:auto;}
+#main{flex:1;overflow:auto;padding:20px;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* 共用元件 */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
+.card-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:13px;font-weight:600;font-family:'Noto Sans TC',sans-serif;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-green{background:#dcfce7;color:#15803d;border-color:#86efac;}
+.btn-green:hover{background:#bbf7d0;color:#166534;}
+.btn-purple{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd;}
+.btn-purple:hover{background:#ddd6fe;color:#5b21b6;}
+.btn-blue{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd;}
+.btn-blue:hover{background:#bfdbfe;color:#1e40af;}
+
+input[type="text"],input[type="password"],input[type="date"],textarea,select{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;padding:8px 12px;width:100%;outline:none;transition:border-color .15s;}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);background:#fff;}
+textarea{resize:vertical;}
+label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px;}
+.form-group{margin-bottom:14px;}
+
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;font-family:'IBM Plex Mono',monospace;}
+.badge-pos{background:#dcfce7;color:#15803d;}
+.badge-neg{background:#fee2e2;color:#991b1b;}
+.badge-a{background:#dbeafe;color:#1d4ed8;}
+.badge-o{background:#ffedd5;color:#9a3412;}
+.badge-m{background:#fee2e2;color:#991b1b;}
+.badge-i{background:#f1f5f9;color:#475569;}
+.badge-r{background:#d1fae5;color:#065f46;}
+.badge-q{background:#ede9fe;color:#5b21b6;}
+
+/* Toast */
+#toast-container{position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-md);pointer-events:auto;animation:toastIn .25s ease;max-width:340px;}
+.toast.success{border-left:3px solid var(--green);}
+.toast.error{border-left:3px solid var(--red);}
+.toast.info{border-left:3px solid var(--accent);}
+@keyframes toastIn{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
+
+/* Generator */
+#gen-layout{display:grid;grid-template-columns:1fr 420px;gap:20px;}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;transition:all .15s;position:relative;}
+.upload-zone:hover{border-color:var(--accent);background:rgba(79,70,229,.03);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.file-previews{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:4px;}
+.file-thumb{position:relative;width:80px;height:64px;border-radius:var(--radius-sm);overflow:hidden;flex-shrink:0;border:1px solid var(--border);}
+.file-thumb img,.file-thumb video{width:100%;height:100%;object-fit:cover;}
+.file-del{position:absolute;top:3px;right:3px;background:rgba(220,38,38,.85);color:#fff;border:none;border-radius:3px;width:18px;height:18px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.q-card{border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;transition:all .15s;background:var(--surface2);margin-bottom:8px;}
+.q-card:hover{box-shadow:var(--shadow-md);background:var(--surface);}
+.q-card.selected{border-color:var(--accent);background:rgba(79,70,229,.04);box-shadow:0 0 0 2px rgba(79,70,229,.2);}
+.q-card-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;}
+.q-card-text{font-weight:700;color:var(--text);font-size:14px;margin-bottom:6px;}
+.q-card-reason{font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;line-height:1.5;}
+.amior-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:14px;}
+.amior-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
+
+/* 判讀指南 — 完整顯示理由文字 */
+.guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin-top:20px;}
+.guide-col h4{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.guide-row{margin-bottom:12px;font-size:13px;line-height:1.5;}
+.guide-row .resp{font-weight:600;color:var(--text);}
+.guide-row .arrow{color:var(--text3);margin:0 4px;}
+.guide-row .cat{font-weight:700;color:var(--accent);}
+/* ★ 修正：reason 完整顯示，不截斷 */
+.guide-reason{font-size:11px;color:var(--text2);display:block;margin-top:4px;padding-left:2px;line-height:1.6;white-space:normal;word-break:break-word;}
+
+.refine-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:rgba(79,70,229,.05);border:1px solid rgba(79,70,229,.2);border-radius:var(--radius-sm);padding:12px 14px;margin-top:14px;}
+.refine-target-badge{font-size:12px;font-weight:700;padding:4px 10px;border-radius:4px;background:rgba(79,70,229,.12);color:var(--accent);white-space:nowrap;font-family:'IBM Plex Mono',monospace;}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:8000;display:flex;align-items:center;justify-content:center;padding:16px;}
+.modal-box{background:var(--surface);border-radius:var(--radius);max-width:920px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-md);}
+.modal-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.modal-head h3{font-size:15px;font-weight:700;}
+.modal-body{padding:20px;overflow:auto;}
+
+/* Dashboard */
+#dash-layout{display:grid;grid-template-columns:280px 1fr;gap:20px;}
+.stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;}
+.stat-num{font-size:30px;font-weight:900;font-family:'IBM Plex Mono',monospace;}
+.stat-lbl{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+/* 圖表看板的圖例列 */
+.chart-legend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:8px;font-size:12px;font-weight:700;color:var(--text2);}
+.chart-legend-item{display:flex;align-items:center;gap:5px;}
+.legend-line{width:28px;height:3px;border-radius:2px;display:inline-block;}
+
+/* ★ 題目清單表格（看板 & 報告共用） */
+.q-table-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.q-tbl-item{display:flex;align-items:flex-start;gap:10px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);transition:all .15s;}
+.q-tbl-item:hover{background:var(--surface);box-shadow:var(--shadow);}
+.q-tbl-id{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:var(--text3);flex-shrink:0;padding-top:2px;}
+.q-tbl-name{font-size:13px;font-weight:500;color:var(--text);word-break:break-word;}
+
+/* Survey */
+.survey-item{background:var(--surface);border:1px solid var(--border);border-left:3px solid transparent;border-radius:var(--radius-sm);padding:16px;margin-bottom:10px;}
+.survey-item.pos{border-left-color:var(--green);}
+.survey-item.neg{border-left-color:var(--red);}
+.s-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;justify-content:space-between;flex-wrap:wrap;}
+.s-title{font-size:15px;font-weight:700;margin-bottom:8px;}
+.si-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--surface2);border:1px solid var(--border);padding:3px 10px;border-radius:20px;}
+.dist-row{display:flex;flex-wrap:wrap;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;}
+.dist-item{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;}
+
+/* Report */
+#report-wrapper{max-width:900px;margin:0 auto;}
+#report-content{background:#fff;color:#1e293b;padding:40px;border-radius:var(--radius);box-shadow:var(--shadow-md);font-family:'Noto Sans TC',sans-serif;}
+#report-content h1{font-size:28px;font-weight:900;border-bottom:3px solid #4f46e5;padding-bottom:12px;margin-bottom:18px;}
+#report-content h2{font-size:20px;font-weight:700;border-left:4px solid #10b981;padding-left:12px;margin:32px 0 14px;}
+#report-content .r-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;color:#64748b;margin-bottom:24px;}
+#report-content .r-grid2{display:grid;grid-template-columns:1fr 1fr;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:20px;}
+#report-content .r-col{padding:18px;font-size:13px;white-space:pre-wrap;line-height:1.7;}
+#report-content .r-col:first-child{background:#eef2ff;border-right:1px solid #e2e8f0;}
+#report-content .r-col h3{font-size:14px;font-weight:700;margin-bottom:8px;}
+.r-stage{border-radius:8px;overflow:hidden;margin-bottom:20px;}
+.r-stage-head{padding:16px 20px;position:relative;}
+.r-stage-body{padding:16px 20px;}
+.r-stage-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:6px;}
+.r-item{display:flex;align-items:center;gap:10px;padding:10px;background:white;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;}
+
+/* 空狀態 */
+.empty-state{text-align:center;padding:48px 20px;color:var(--text3);}
+.empty-icon{font-size:44px;opacity:.3;margin-bottom:10px;}
+
+/* Spinner */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* JSON */
+#json-view{background:#0f172a;color:#34d399;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:16px;border-radius:var(--radius-sm);white-space:pre;overflow:auto;min-height:400px;max-height:75vh;border:1px solid var(--border);}
+
+/* RWD */
+@media(max-width:900px){
+  #gen-layout,#dash-layout{grid-template-columns:1fr;}
+  .guide-grid,.q-table-grid{grid-template-columns:1fr;}
+  #report-content .r-meta,#report-content .r-grid2{grid-template-columns:1fr;}
+}
+</style>
 </head>
-
 <body>
-  <div id="app">
+<div id="app">
 
-    <!-- Header -->
-    <div id="header">
-      <div class="logo">⬡ KANO</div>
-      <div class="nav-tabs">
-        <button class="nav-tab active" data-tab="generator">🪄 題目產生器</button>
-        <button class="nav-tab" data-tab="dashboard">📊 圖表看板</button>
-        <button class="nav-tab" data-tab="survey">📋 問卷填寫預覽</button>
-        <button class="nav-tab" data-tab="report">📄 報告預覽</button>
-        <button class="nav-tab" data-tab="data">🔧 API 數據</button>
+<!-- Header -->
+<div id="header">
+  <div class="logo">⬡ KANO</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="generator">🪄 題目產生器</button>
+    <button class="nav-tab" data-tab="dashboard">📊 圖表看板</button>
+    <button class="nav-tab" data-tab="survey">📋 問卷填寫預覽</button>
+    <button class="nav-tab" data-tab="report">📄 報告預覽</button>
+    <button class="nav-tab" data-tab="data">🔧 API 數據</button>
+  </div>
+  <div id="header-actions">
+    <button class="btn btn-primary btn-sm" id="export-html-btn" style="display:none" onclick="exportHTML()">匯出 HTML 報告</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<div id="main">
+
+<!-- 題目產生器 -->
+<div class="tab-panel active" id="tab-generator">
+  <div id="gen-layout">
+    <div class="card" style="display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <div class="card-title">① 上傳素材（圖片／影片）</div>
+        <div class="upload-zone">
+          <input type="file" id="file-input" multiple accept="image/*,video/*" onchange="handleFileInput(this)">
+          <div style="font-size:28px;margin-bottom:6px;">📎</div>
+          <p style="color:var(--text2);font-size:12px;">點擊或拖曳上傳多個檔案</p>
+        </div>
+        <div class="file-previews" id="file-previews"></div>
       </div>
-      <div id="header-actions">
-        <button class="btn btn-primary btn-sm" id="export-html-btn" style="display:none" onclick="exportHTML()">匯出 HTML
-          報告</button>
+      <div style="flex:1;display:flex;flex-direction:column;">
+        <div class="card-title">② 產品／功能描述（關鍵）</div>
+        <textarea id="description" rows="7" placeholder="請描述產品玩法、功能大綱，例如：這是一款行動 RPG，具備即時戰鬥、每日任務、公會系統…" style="flex:1;"></textarea>
       </div>
     </div>
-
-    <div id="toast-container"></div>
-
-    <div id="main">
-
-      <!-- 題目產生器 -->
-      <div class="tab-panel active" id="tab-generator">
-        <div id="gen-layout">
-          <div class="card" style="display:flex;flex-direction:column;gap:16px;">
-            <div>
-              <div class="card-title">① 上傳素材（圖片／影片）</div>
-              <div class="upload-zone">
-                <input type="file" id="file-input" multiple accept="image/*,video/*" onchange="handleFileInput(this)">
-                <div style="font-size:28px;margin-bottom:6px;">📎</div>
-                <p style="color:var(--text2);font-size:12px;">點擊或拖曳上傳多個檔案</p>
-              </div>
-              <div class="file-previews" id="file-previews"></div>
-            </div>
-            <div style="flex:1;display:flex;flex-direction:column;">
-              <div class="card-title">② 產品／功能描述（關鍵）</div>
-              <textarea id="description" rows="7" placeholder="請描述產品玩法、功能大綱，例如：這是一款行動 RPG，具備即時戰鬥、每日任務、公會系統…"
-                style="flex:1;"></textarea>
-            </div>
-          </div>
-          <div class="card" style="display:flex;flex-direction:column;gap:14px;">
-            <div class="card-title">③ AI 題目生成設定</div>
-            <div style="display:flex;gap:8px;">
-              <button class="btn btn-sm" style="flex:1;" onclick="saveProject()">💾 儲存專案</button>
-              <label class="btn btn-sm" style="flex:1;cursor:pointer;justify-content:center;user-select:none;">
-                📂 讀取專案
-                <input type="file" accept=".json" id="project-input" style="display:none;" onchange="loadProject(this)">
-              </label>
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label>🔑 Gemini API Key <span style="color:var(--red);float:right;">* 必填</span></label>
-              <input type="password" id="api-key" placeholder="請輸入 Google Gemini API Key"
-                oninput="saveApiKey(this.value)">
-            </div>
-            <div class="form-group" style="margin-bottom:0;flex:1;display:flex;flex-direction:column;">
-              <label>定義提詞（Prompt）</label>
-              <textarea id="prompt-text" rows="10"
-                style="flex:1;font-size:11px;color:var(--text2);font-family:'IBM Plex Mono',monospace;line-height:1.5;"></textarea>
-            </div>
-            <button class="btn btn-primary" id="gen-btn" onclick="generateQuestions()"
-              style="width:100%;justify-content:center;padding:10px;font-size:14px;">
-              ⚡ 根據內容生成題目
-            </button>
-          </div>
-        </div>
-
-        <!-- 生成結果 -->
-        <div class="card" style="margin-top:20px;">
-          <div
-            style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-            <div class="card-title" style="margin:0;">📈 生成結果預覽</div>
-            <div id="gen-export-btns" style="display:none;gap:8px;flex-wrap:wrap;"></div>
-          </div>
-          <div id="amior-bar" class="amior-bar" style="display:none;"></div>
-          <div id="questions-list">
-            <div class="empty-state">
-              <div class="empty-icon">🔍</div>
-              <p>請先輸入描述並點擊「生成題目」</p>
-            </div>
-          </div>
-          <div class="refine-bar" id="refine-bar" style="display:none;">
-            <span style="font-weight:700;font-size:13px;">AI 題目優化</span>
-            <span class="refine-target-badge" id="refine-target-badge">針對：題組 1</span>
-            <button class="btn btn-sm" id="toggle-all-btn" onclick="toggleRefineAll()">切換全體</button>
-            <input type="text" id="refine-input" placeholder="輸入修改需求（例如：把第2題改成更深入的UX問題）"
-              style="flex:1;min-width:160px;">
-            <button class="btn btn-sm btn-primary" id="refine-submit-btn" onclick="refineQuestion()">重新生成</button>
-          </div>
-          <div id="guide-section"></div>
-        </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="card-title">③ AI 題目生成設定</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" style="flex:1;" onclick="saveProject()">💾 儲存專案</button>
+        <label class="btn btn-sm" style="flex:1;cursor:pointer;justify-content:center;user-select:none;">
+          📂 讀取專案
+          <input type="file" accept=".json" id="project-input" style="display:none;" onchange="loadProject(this)">
+        </label>
       </div>
-
-      <!-- 圖表看板 -->
-      <div class="tab-panel" id="tab-dashboard">
-        <div id="dash-layout">
-          <div style="display:flex;flex-direction:column;gap:16px;">
-            <div class="card">
-              <div class="card-title">📤 數據來源</div>
-              <label class="upload-zone"
-                style="padding:24px;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
-                <input type="file" accept=".xlsx,.xls,.csv" id="excel-input" style="display:none;"
-                  onchange="uploadExcel(this)">
-                <div style="font-size:32px;color:var(--text3);margin-bottom:6px;">🗃️</div>
-                <p style="font-size:13px;font-weight:600;color:var(--text2);">更新數據（上傳 Excel）</p>
-                <p style="font-size:11px;color:var(--text3);margin-top:4px;">支援 Sheet1 原始問卷檔</p>
-              </label>
-              <button class="btn btn-sm" onclick="loadDemoData()"
-                style="width:100%;margin-top:10px;justify-content:center;">載入範例數據</button>
-            </div>
-            <div class="card">
-              <div class="card-title">⚙️ 報告設定</div>
-              <div class="form-group"><label>報告名稱</label><input type="text" id="report-title" value="Kano 模型分析報告"></div>
-              <div class="form-group"><label>專案名稱</label><input type="text" id="project-name"></div>
-              <div class="form-group"><label>製作人</label><input type="text" id="author"></div>
-              <div class="form-group" style="margin:0;"><label>日期</label><input type="date" id="report-date"></div>
-            </div>
-            <div class="card">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div class="stat-box">
-                  <div class="stat-num" id="stat-respondents">0</div>
-                  <div class="stat-lbl">總樣本</div>
-                </div>
-                <div class="stat-box">
-                  <div class="stat-num" id="stat-questions">0</div>
-                  <div class="stat-lbl">題數</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="card">
-            <div style="font-size:16px;font-weight:700;margin-bottom:10px;">Kano 模型分佈圖</div>
-            <div class="chart-legend">
-              <div class="chart-legend-item"><span class="legend-line"
-                  style="background:rgba(252,165,165,.9);"></span>基本 (M)</div>
-              <div class="chart-legend-item"><span class="legend-line"
-                  style="background:rgba(253,186,116,.9);"></span>期望 (O)</div>
-              <div class="chart-legend-item"><span class="legend-line"
-                  style="background:rgba(147,197,253,.9);"></span>魅力 (A)</div>
-              <div class="chart-legend-item"><span class="legend-line"
-                  style="background:rgba(148,163,184,.7);"></span>無差異 (I)</div>
-              <div class="chart-legend-item">
-                <span
-                  style="width:28px;height:3px;background:repeating-linear-gradient(to right,rgba(134,239,172,.9) 0,rgba(134,239,172,.9) 5px,transparent 5px,transparent 9px);display:inline-block;"></span>
-                反向 (R)
-              </div>
-            </div>
-            <div style="position:relative;height:460px;">
-              <canvas id="scatter-chart"></canvas>
-            </div>
-            <!-- ★ 題目清單（看板下方，對照原始程式碼） -->
-            <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <div style="font-size:13px;font-weight:700;">題目詳細數據與對照</div>
-                <select id="sort-mode" onchange="renderQTable()" style="width:auto;">
-                  <option value="id">依題號排序</option>
-                  <option value="cat">依屬性排序</option>
-                </select>
-              </div>
-              <div class="q-table-grid" id="q-stat-grid">
-                <div class="empty-state" style="grid-column:1/-1;padding:24px;">
-                  <div class="empty-icon" style="font-size:28px;">📊</div>
-                  <p>尚無數據，請上傳 Excel 或載入範例</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>🔑 Gemini API Key <span style="color:var(--red);float:right;">* 必填</span></label>
+        <input type="password" id="api-key" placeholder="請輸入 Google Gemini API Key" oninput="saveApiKey(this.value)">
       </div>
-
-      <!-- 問卷填寫預覽 -->
-      <div class="tab-panel" id="tab-survey">
-        <div id="survey-content">
-          <div class="empty-state">
-            <div class="empty-icon">📋</div>
-            <p>請先在圖表看板上傳 Excel 數據或載入範例數據</p>
-          </div>
-        </div>
+      <div class="form-group" style="margin-bottom:0;flex:1;display:flex;flex-direction:column;">
+        <label>定義提詞（Prompt）</label>
+        <textarea id="prompt-text" rows="10" style="flex:1;font-size:11px;color:var(--text2);font-family:'IBM Plex Mono',monospace;line-height:1.5;"></textarea>
       </div>
+      <button class="btn btn-primary" id="gen-btn" onclick="generateQuestions()" style="width:100%;justify-content:center;padding:10px;font-size:14px;">
+        ⚡ 根據內容生成題目
+      </button>
+    </div>
+  </div>
 
-      <!-- 報告預覽 -->
-      <div class="tab-panel" id="tab-report">
-        <div id="report-wrapper">
-          <div id="report-content">
-            <div class="empty-state" style="color:#94a3b8;">
-              <div class="empty-icon">📑</div>
-              <p>請先在圖表看板載入數據後，報告將自動生成</p>
-            </div>
-          </div>
-        </div>
+  <!-- 生成結果 -->
+  <div class="card" style="margin-top:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div class="card-title" style="margin:0;">📈 生成結果預覽</div>
+      <div id="gen-export-btns" style="display:none;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+    <div id="amior-bar" class="amior-bar" style="display:none;"></div>
+    <div id="questions-list">
+      <div class="empty-state"><div class="empty-icon">🔍</div><p>請先輸入描述並點擊「生成題目」</p></div>
+    </div>
+    <div class="refine-bar" id="refine-bar" style="display:none;">
+      <span style="font-weight:700;font-size:13px;">AI 題目優化</span>
+      <span class="refine-target-badge" id="refine-target-badge">針對：題組 1</span>
+      <button class="btn btn-sm" id="toggle-all-btn" onclick="toggleRefineAll()">切換全體</button>
+      <input type="text" id="refine-input" placeholder="輸入修改需求（例如：把第2題改成更深入的UX問題）" style="flex:1;min-width:160px;">
+      <button class="btn btn-sm btn-primary" id="refine-submit-btn" onclick="refineQuestion()">重新生成</button>
+    </div>
+    <div id="guide-section"></div>
+  </div>
+</div>
+
+<!-- 圖表看板 -->
+<div class="tab-panel" id="tab-dashboard">
+  <div id="dash-layout">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card">
+        <div class="card-title">📤 數據來源</div>
+        <label class="upload-zone" style="padding:24px;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+          <input type="file" accept=".xlsx,.xls,.csv" id="excel-input" style="display:none;" onchange="uploadExcel(this)">
+          <div style="font-size:32px;color:var(--text3);margin-bottom:6px;">🗃️</div>
+          <p style="font-size:13px;font-weight:600;color:var(--text2);">更新數據（上傳 Excel）</p>
+          <p style="font-size:11px;color:var(--text3);margin-top:4px;">支援 Sheet1 原始問卷檔</p>
+        </label>
+        <button class="btn btn-sm" onclick="loadDemoData()" style="width:100%;margin-top:10px;justify-content:center;">載入範例數據</button>
       </div>
-
-      <!-- API 數據 -->
-      <div class="tab-panel" id="tab-data">
-        <div class="card">
-          <div class="card-title">🔧 API JSON 資料</div>
-          <pre id="json-view">{}</pre>
-        </div>
+      <div class="card">
+        <div class="card-title">⚙️ 報告設定</div>
+        <div class="form-group"><label>報告名稱</label><input type="text" id="report-title" value="Kano 模型分析報告"></div>
+        <div class="form-group"><label>專案名稱</label><input type="text" id="project-name"></div>
+        <div class="form-group"><label>製作人</label><input type="text" id="author"></div>
+        <div class="form-group" style="margin:0;"><label>日期</label><input type="date" id="report-date"></div>
       </div>
-
-    </div><!-- /main -->
-
-    <!-- 截圖 Modal -->
-    <div id="screenshot-modal" style="display:none;" class="modal-overlay"
-      onclick="if(event.target===this)closeModal()">
-      <div class="modal-box">
-        <div class="modal-head">
-          <h3>題目設計總覽（截圖模式）</h3>
-          <button class="btn btn-sm" onclick="closeModal()">✕ 關閉</button>
-        </div>
-        <div class="modal-body">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
-            <thead>
-              <tr style="border-bottom:2px solid #1e293b;">
-                <th style="padding:10px;text-align:left;width:60px;">編號</th>
-                <th style="padding:10px;text-align:left;width:25%;">功能情境</th>
-                <th style="padding:10px;text-align:left;">正向問句</th>
-                <th style="padding:10px;text-align:left;">反向問句</th>
-              </tr>
-            </thead>
-            <tbody id="screenshot-tbody"></tbody>
-          </table>
+      <div class="card">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="stat-box"><div class="stat-num" id="stat-respondents">0</div><div class="stat-lbl">總樣本</div></div>
+          <div class="stat-box"><div class="stat-num" id="stat-questions">0</div><div class="stat-lbl">題數</div></div>
         </div>
       </div>
     </div>
+    <div class="card">
+      <div style="font-size:16px;font-weight:700;margin-bottom:10px;">Kano 模型分佈圖</div>
+      <div class="chart-legend">
+        <div class="chart-legend-item"><span class="legend-line" style="background:rgba(252,165,165,.9);"></span>基本 (M)</div>
+        <div class="chart-legend-item"><span class="legend-line" style="background:rgba(253,186,116,.9);"></span>期望 (O)</div>
+        <div class="chart-legend-item"><span class="legend-line" style="background:rgba(147,197,253,.9);"></span>魅力 (A)</div>
+        <div class="chart-legend-item"><span class="legend-line" style="background:rgba(148,163,184,.7);"></span>無差異 (I)</div>
+        <div class="chart-legend-item">
+          <span style="width:28px;height:3px;background:repeating-linear-gradient(to right,rgba(134,239,172,.9) 0,rgba(134,239,172,.9) 5px,transparent 5px,transparent 9px);display:inline-block;"></span>
+          反向 (R)
+        </div>
+      </div>
+      <div style="position:relative;height:460px;">
+        <canvas id="scatter-chart"></canvas>
+      </div>
+      <!-- ★ 題目清單（看板下方，對照原始程式碼） -->
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:700;">題目詳細數據與對照</div>
+          <select id="sort-mode" onchange="renderQTable()" style="width:auto;">
+            <option value="id">依題號排序</option>
+            <option value="cat">依屬性排序</option>
+          </select>
+        </div>
+        <div class="q-table-grid" id="q-stat-grid">
+          <div class="empty-state" style="grid-column:1/-1;padding:24px;"><div class="empty-icon" style="font-size:28px;">📊</div><p>尚無數據，請上傳 Excel 或載入範例</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-    <!-- ════════════ SCRIPT ════════════ -->
-    <script>
-      // ══════ 常數 ══════
-      const CAT_COLORS = { A: '#3b82f6', O: '#f97316', M: '#ef4444', I: '#64748b', R: '#10b981', Q: '#8b5cf6' };
-      const SHORT_NAMES = { A: '魅力 (A)', O: '期望 (O)', M: '基本 (M)', I: '無差異 (I)', R: '反向 (R)', Q: '疑問 (Q)' };
-      const CAT_NAMES = { A: '魅力屬性 (Attractive)', O: '期望屬性 (One-dimensional)', M: '基本屬性 (Must-be)', I: '無差異屬性 (Indifferent)', R: '反向屬性 (Reverse)', Q: '疑問結果 (Questionable)' };
-      const CAT_PRIORITY = { M: 1, O: 2, A: 2, I: 3, R: 3, Q: 4 };
+<!-- 問卷填寫預覽 -->
+<div class="tab-panel" id="tab-survey">
+  <div id="survey-content">
+    <div class="empty-state"><div class="empty-icon">📋</div><p>請先在圖表看板上傳 Excel 數據或載入範例數據</p></div>
+  </div>
+</div>
 
-      const DEFAULT_GUIDE = {
-        positive_analysis: [
-          { response: '我非常喜歡', category: 'A 魅力品質', reason: '超越預期，這個功能帶來愉悅與驚喜，是競品沒有的加分項。' },
-          { response: '我期望如此', category: 'O 期望品質', reason: '好的產品本來就應該具備，功能做好滿意度線性提升。' },
-          { response: '無所謂', category: 'I 無感品質', reason: '對使用者體驗影響不大，非核心需求，可暫緩投入。' },
-          { response: '可以接受', category: 'M 基本品質', reason: '基礎門檻功能，有這功能是應該的，缺少才會引發不滿。' },
-          { response: '無法接受', category: 'R 反向品質', reason: '這功能的設計方向本身就是干擾，做了反而讓人反感。' }
-        ],
-        negative_analysis: [
-          { response: '我非常喜歡', category: 'R 反向品質', reason: '喜歡「沒有這功能」，代表原功能設計干擾了使用者體驗。' },
-          { response: '我期望如此', category: 'R 反向品質', reason: '期望「沒有」，顯示功能可能是多餘的累贅。' },
-          { response: '無所謂', category: 'A 魅力品質', reason: '沒有也無所謂，代表這功能僅是加分項，不做也不影響滿意度。' },
-          { response: '可以接受', category: 'O 期望品質', reason: '勉強可接受沒有，代表功能屬於期望品質，有最好。' },
-          { response: '無法接受', category: 'M 基本品質', reason: '絕對不能接受沒有，這是最低門檻，缺少會直接導致不滿。' }
-        ]
-      };
+<!-- 報告預覽 -->
+<div class="tab-panel" id="tab-report">
+  <div id="report-wrapper">
+    <div id="report-content">
+      <div class="empty-state" style="color:#94a3b8;"><div class="empty-icon">📑</div><p>請先在圖表看板載入數據後，報告將自動生成</p></div>
+    </div>
+  </div>
+</div>
 
-      const DEMO_DATA = {
-        meta: { totalRespondents: 150, analysisDate: new Date().toISOString().split('T')[0] },
-        items: [
-          { id: 'Q1', text: '角色施法時的華麗粒子特效', isPos: true, displayId: 'Q1', si: 0.72, dsi: -0.15, category: 'A', stats: { A: 90, O: 10, M: 5, I: 45, R: 0, Q: 0 }, answerCounts: { '我非常喜歡': 90, '我期望如此': 10, '無所謂': 45, '可以接受': 5, '無法接受': 0 } },
-          { id: 'Q2', text: '遊戲讀取時間小於 3 秒', isPos: true, displayId: 'Q2', si: 0.80, dsi: -0.75, category: 'O', stats: { A: 20, O: 100, M: 20, I: 10, R: 0, Q: 0 }, answerCounts: { '我非常喜歡': 20, '我期望如此': 100, '無所謂': 10, '可以接受': 20, '無法接受': 0 } },
-          { id: 'Q3', text: '斷線後自動重連功能', isPos: true, displayId: 'Q3', si: 0.25, dsi: -0.85, category: 'M', stats: { A: 5, O: 20, M: 100, I: 25, R: 0, Q: 0 }, answerCounts: { '我非常喜歡': 5, '我期望如此': 20, '無所謂': 25, '可以接受': 0, '無法接受': 100 } },
-          { id: 'Q4', text: '每日登入領取少量金幣', isPos: true, displayId: 'Q4', si: 0.13, dsi: -0.13, category: 'I', stats: { A: 10, O: 10, M: 10, I: 100, R: 20, Q: 0 }, answerCounts: { '我非常喜歡': 10, '我期望如此': 10, '無所謂': 100, '可以接受': 10, '無法接受': 20 } },
-          { id: 'Q5', text: '深色模式 (Dark Mode)', isPos: true, displayId: 'Q5', si: 0.65, dsi: -0.35, category: 'A', stats: { A: 60, O: 30, M: 10, I: 50, R: 0, Q: 0 }, answerCounts: { '我非常喜歡': 60, '我期望如此': 30, '無所謂': 50, '可以接受': 10, '無法接受': 0 } }
-        ]
-      };
+<!-- API 數據 -->
+<div class="tab-panel" id="tab-data">
+  <div class="card"><div class="card-title">🔧 API JSON 資料</div><pre id="json-view">{}</pre></div>
+</div>
 
-      // ★ 更新 System Prompt：要求 AI 深度分析、具體情境化，並確保 reason 完整
-      const SYSTEM_PROMPT = `# Role Definition
+</div><!-- /main -->
+
+<!-- 截圖 Modal -->
+<div id="screenshot-modal" style="display:none;" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>題目設計總覽（截圖模式）</h3>
+      <button class="btn btn-sm" onclick="closeModal()">✕ 關閉</button>
+    </div>
+    <div class="modal-body">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="border-bottom:2px solid #1e293b;">
+          <th style="padding:10px;text-align:left;width:60px;">編號</th>
+          <th style="padding:10px;text-align:left;width:25%;">功能情境</th>
+          <th style="padding:10px;text-align:left;">正向問句</th>
+          <th style="padding:10px;text-align:left;">反向問句</th>
+        </tr></thead>
+        <tbody id="screenshot-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ SCRIPT ════════════ -->
+<script>
+// ══════ 常數 ══════
+const CAT_COLORS={A:'#3b82f6',O:'#f97316',M:'#ef4444',I:'#64748b',R:'#10b981',Q:'#8b5cf6'};
+const SHORT_NAMES={A:'魅力 (A)',O:'期望 (O)',M:'基本 (M)',I:'無差異 (I)',R:'反向 (R)',Q:'疑問 (Q)'};
+const CAT_NAMES={A:'魅力屬性 (Attractive)',O:'期望屬性 (One-dimensional)',M:'基本屬性 (Must-be)',I:'無差異屬性 (Indifferent)',R:'反向屬性 (Reverse)',Q:'疑問結果 (Questionable)'};
+const CAT_PRIORITY={M:1,O:2,A:2,I:3,R:3,Q:4};
+
+const DEFAULT_GUIDE={
+  positive_analysis:[
+    {response:'我非常喜歡',category:'A 魅力品質',reason:'超越預期，這個功能帶來愉悅與驚喜，是競品沒有的加分項。'},
+    {response:'我期望如此',category:'O 期望品質',reason:'好的產品本來就應該具備，功能做好滿意度線性提升。'},
+    {response:'無所謂',    category:'I 無感品質',reason:'對使用者體驗影響不大，非核心需求，可暫緩投入。'},
+    {response:'可以接受',  category:'M 基本品質',reason:'基礎門檻功能，有這功能是應該的，缺少才會引發不滿。'},
+    {response:'無法接受',  category:'R 反向品質',reason:'這功能的設計方向本身就是干擾，做了反而讓人反感。'}
+  ],
+  negative_analysis:[
+    {response:'我非常喜歡',category:'R 反向品質',reason:'喜歡「沒有這功能」，代表原功能設計干擾了使用者體驗。'},
+    {response:'我期望如此',category:'R 反向品質',reason:'期望「沒有」，顯示功能可能是多餘的累贅。'},
+    {response:'無所謂',    category:'A 魅力品質',reason:'沒有也無所謂，代表這功能僅是加分項，不做也不影響滿意度。'},
+    {response:'可以接受',  category:'O 期望品質',reason:'勉強可接受沒有，代表功能屬於期望品質，有最好。'},
+    {response:'無法接受',  category:'M 基本品質',reason:'絕對不能接受沒有，這是最低門檻，缺少會直接導致不滿。'}
+  ]
+};
+
+const DEMO_DATA={
+  meta:{totalRespondents:150,analysisDate:new Date().toISOString().split('T')[0]},
+  items:[
+    {id:'Q1',text:'角色施法時的華麗粒子特效',isPos:true,displayId:'Q1',si:0.72,dsi:-0.15,category:'A',stats:{A:90,O:10,M:5,I:45,R:0,Q:0},answerCounts:{'我非常喜歡':90,'我期望如此':10,'無所謂':45,'可以接受':5,'無法接受':0}},
+    {id:'Q2',text:'遊戲讀取時間小於 3 秒',isPos:true,displayId:'Q2',si:0.80,dsi:-0.75,category:'O',stats:{A:20,O:100,M:20,I:10,R:0,Q:0},answerCounts:{'我非常喜歡':20,'我期望如此':100,'無所謂':10,'可以接受':20,'無法接受':0}},
+    {id:'Q3',text:'斷線後自動重連功能',isPos:true,displayId:'Q3',si:0.25,dsi:-0.85,category:'M',stats:{A:5,O:20,M:100,I:25,R:0,Q:0},answerCounts:{'我非常喜歡':5,'我期望如此':20,'無所謂':25,'可以接受':0,'無法接受':100}},
+    {id:'Q4',text:'每日登入領取少量金幣',isPos:true,displayId:'Q4',si:0.13,dsi:-0.13,category:'I',stats:{A:10,O:10,M:10,I:100,R:20,Q:0},answerCounts:{'我非常喜歡':10,'我期望如此':10,'無所謂':100,'可以接受':10,'無法接受':20}},
+    {id:'Q5',text:'深色模式 (Dark Mode)',isPos:true,displayId:'Q5',si:0.65,dsi:-0.35,category:'A',stats:{A:60,O:30,M:10,I:50,R:0,Q:0},answerCounts:{'我非常喜歡':60,'我期望如此':30,'無所謂':50,'可以接受':10,'無法接受':0}}
+  ]
+};
+
+// ★ 更新 System Prompt：要求 AI 深度分析、具體情境化，並確保 reason 完整
+const SYSTEM_PROMPT=`# Role Definition
 你是一位講話直白、重視落地執行的資深產品經理 (PM)。你討厭空泛的理論，擅長給出「明天就能執行」的具體建議。
 
 # 核心任務
@@ -1290,884 +461,882 @@
   }
 }`;
 
-      // ══════ 狀態 ══════
-      const S = {
-        genQuestions: [], genGuide: null, files: [],
-        data: { meta: { totalRespondents: 0, analysisDate: new Date().toISOString().split('T')[0] }, items: [] },
-        refineTarget: '1',
-        scatterChart: null,
-        summaryHighlights: '', analysisReason: '', improvementItems: [],
-        // 版本追蹤：資料更新時遞增，報告渲染後記錄
-        _currentDataVersion: 0,
-        _reportDataVersion: -1
-      };
+// ══════ 狀態 ══════
+const S={
+  genQuestions:[],genGuide:null,files:[],
+  data:{meta:{totalRespondents:0,analysisDate:new Date().toISOString().split('T')[0]},items:[]},
+  refineTarget:'1',
+  scatterChart:null,
+  summaryHighlights:'',analysisReason:'',improvementItems:[],
+  // 版本追蹤：資料更新時遞增，報告渲染後記錄
+  _currentDataVersion:0,
+  _reportDataVersion:-1
+};
 
-      // ══════ 初始化 ══════
-      document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('prompt-text').value = SYSTEM_PROMPT;
-        document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
-        try { const k = localStorage.getItem('gemini_api_key'); if (k) document.getElementById('api-key').value = k; } catch { }
-        document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-        initScatterChart();
+// ══════ 初始化 ══════
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('prompt-text').value=SYSTEM_PROMPT;
+  document.getElementById('report-date').value=new Date().toISOString().split('T')[0];
+  // ★ 不自動帶入 API Key，每次由使用者手動輸入
+  document.querySelectorAll('.nav-tab').forEach(btn=>btn.addEventListener('click',()=>switchTab(btn.dataset.tab)));
+  initScatterChart();
+});
+
+function switchTab(tab){
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`.nav-tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.getElementById('export-html-btn').style.display=tab==='report'?'inline-flex':'none';
+  if(tab==='report'){
+    // ★ 每次切換到報告頁都重新渲染（確保報告設定反映最新值）
+    // 但只有圖表 canvas 不存在，或數據版本改變時，才重建圖表
+    renderReport();
+  }
+  if(tab==='data') document.getElementById('json-view').textContent=JSON.stringify(S.data,null,2);
+  if(tab==='survey') renderSurvey();
+}
+function saveApiKey(v){ /* API Key 不儲存，每次手動輸入 */ }
+
+// ══════ Toast ══════
+function toast(msg,type='info'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<span>${type==='success'?'✅':type==='error'?'❌':'ℹ️'}</span><span style="flex:1">${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),4000);
+}
+
+// ══════ 素材上傳 ══════
+function handleFileInput(input){
+  const nf=Array.from(input.files).map(f=>({id:Math.random().toString(36).substr(2,9),file:f,url:URL.createObjectURL(f),type:f.type.startsWith('video')?'video':'image'}));
+  S.files=[...S.files,...nf];renderFilePreviews();input.value='';
+}
+function renderFilePreviews(){
+  const w=document.getElementById('file-previews');
+  w.innerHTML=S.files.map(f=>`<div class="file-thumb">${f.type==='video'?`<video src="${f.url}"></video>`:`<img src="${f.url}">`}<button class="file-del" onclick="removeFile('${f.id}')">✕</button></div>`).join('');
+}
+function removeFile(id){S.files=S.files.filter(f=>f.id!==id);renderFilePreviews();}
+function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.readAsDataURL(file);r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;});}
+
+// ══════ Gemini API ══════
+async function callGemini(payload,apiKey){
+  if(!apiKey||!apiKey.trim()) throw new Error('請先輸入有效的 Gemini API Key。');
+  // 退避等待時間：1s, 5s, 15s, 35s, 65s
+  const delays=[1000,5000,15000,35000,65000];
+  let lastError=null;
+  for(let i=0;i<delays.length;i++){
+    try{
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
       });
-
-      function switchTab(tab) {
-        document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        document.querySelector(`.nav-tab[data-tab="${tab}"]`).classList.add('active');
-        document.getElementById(`tab-${tab}`).classList.add('active');
-        document.getElementById('export-html-btn').style.display = tab === 'report' ? 'inline-flex' : 'none';
-        if (tab === 'report') {
-          // ★ 每次切換到報告頁都重新渲染（確保報告設定反映最新值）
-          // 但只有圖表 canvas 不存在，或數據版本改變時，才重建圖表
-          renderReport();
+      if(res.ok) return await res.json();
+      const errBody=await res.json().catch(()=>({}));
+      const msg=errBody?.error?.message||`狀態碼 ${res.status}`;
+      // 401/403：Key 錯誤，不重試
+      if(res.status===401||res.status===403) throw new Error(`API 金鑰錯誤: ${msg}`);
+      // 429：配額超限，自動等待後重試（從錯誤訊息萃取等待秒數）
+      if(res.status===429){
+        const waitMatch=msg.match(/retry in ([\d.]+)s/i);
+        const waitSec=waitMatch?Math.ceil(parseFloat(waitMatch[1])*1000):delays[i];
+        if(i<delays.length-1){
+          toast(`API 使用量已達上限，${Math.ceil(waitSec/1000)} 秒後自動重試…`,'info');
+          await new Promise(r=>setTimeout(r,waitSec));
+          continue;
         }
-        if (tab === 'data') document.getElementById('json-view').textContent = JSON.stringify(S.data, null, 2);
-        if (tab === 'survey') renderSurvey();
+        throw new Error(`API 請求過於頻繁，請等待約 ${Math.ceil(waitSec/1000)} 秒後再試`);
       }
-      function saveApiKey(v) { try { localStorage.setItem('gemini_api_key', v); } catch { } }
+      // 400 其他：Bad Request，不重試
+      if(res.status===400) throw new Error(`API 請求格式錯誤: ${msg}`);
+      // 其他 4xx/5xx：等待後重試
+      lastError=new Error(`伺服器暫時無回應 (${res.status}): ${msg}`);
+    }catch(e){
+      // 不重試的錯誤直接拋出
+      if(e.message.startsWith('API 金鑰錯誤')||e.message.startsWith('API 請求格式錯誤')) throw e;
+      lastError=e;
+    }
+    if(i<delays.length-1){
+      await new Promise(r=>setTimeout(r,delays[i]));
+    }
+  }
+  throw lastError||new Error('無法連線至 AI 伺服器，請確認網路狀態或稍後再試。');
+}
+function parseAIJson(text){
+  let clean=text.replace(/```json\n?/gi,'').replace(/```\n?/g,'').trim();
+  try{return JSON.parse(clean);}catch{}
+  const m=clean.match(/\{[\s\S]*\}/)||clean.match(/\[[\s\S]*\]/);
+  if(m) try{return JSON.parse(m[0]);}catch{}
+  throw new Error('AI 回傳格式不正確，請重試');
+}
 
-      // ══════ Toast ══════
-      function toast(msg, type = 'info') {
-        const el = document.createElement('div');
-        el.className = `toast ${type}`;
-        el.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span><span style="flex:1">${msg}</span>`;
-        document.getElementById('toast-container').appendChild(el);
-        setTimeout(() => el.remove(), 4000);
-      }
+// ══════ 安全工具函式 ══════
+function safeCatCode(category){
+  if(!category) return '?';
+  const s=String(category).trim();
+  return s.split(' ')[0]||s;
+}
+// 放寬驗證：只要有陣列且長度為5、每項有response和category就接受
+function safeGuide(raw){
+  if(!raw) return DEFAULT_GUIDE;
+  const chk=arr=>Array.isArray(arr)&&arr.length===5&&arr.every(r=>r&&r.response&&r.category);
+  if(chk(raw.positive_analysis)&&chk(raw.negative_analysis)) return raw;
+  return DEFAULT_GUIDE;
+}
 
-      // ══════ 素材上傳 ══════
-      function handleFileInput(input) {
-        const nf = Array.from(input.files).map(f => ({ id: Math.random().toString(36).substr(2, 9), file: f, url: URL.createObjectURL(f), type: f.type.startsWith('video') ? 'video' : 'image' }));
-        S.files = [...S.files, ...nf]; renderFilePreviews(); input.value = '';
-      }
-      function renderFilePreviews() {
-        const w = document.getElementById('file-previews');
-        w.innerHTML = S.files.map(f => `<div class="file-thumb">${f.type === 'video' ? `<video src="${f.url}"></video>` : `<img src="${f.url}">`}<button class="file-del" onclick="removeFile('${f.id}')">✕</button></div>`).join('');
-      }
-      function removeFile(id) { S.files = S.files.filter(f => f.id !== id); renderFilePreviews(); }
-      function fileToBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; }); }
+// ══════ 生成題目 ══════
+async function generateQuestions(){
+  const apiKey=document.getElementById('api-key').value.trim();
+  const desc=document.getElementById('description').value.trim();
+  const prompt=document.getElementById('prompt-text').value;
+  const btn=document.getElementById('gen-btn');
+  if(!apiKey){toast('請先輸入 Gemini API Key','error');return;}
+  if(!desc&&!S.files.length){toast('請輸入描述或上傳素材','error');return;}
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> 分析內容中…';
+  try{
+    let payload;
+    if(S.files.length>0){
+      const parts=[{text:`[System Instruction]\n${prompt}\n\n[User Request]\n${desc||'請根據提供的圖片/影片，深入分析產品功能後生成題目。'}`}];
+      for(const f of S.files){try{parts.push({inlineData:{mimeType:f.file.type,data:await fileToBase64(f.file)}});}catch{}}
+      payload={contents:[{role:'user',parts}]};
+    }else{
+      payload={contents:[{parts:[{text:desc}]}],systemInstruction:{parts:[{text:prompt}]}};
+    }
+    const result=await callGemini(payload,apiKey);
+    const text=result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if(!text) throw new Error('AI 未回傳文字');
+    const parsed=parseAIJson(text);
+    let qs=[],guide=null;
+    if(Array.isArray(parsed)) qs=parsed;
+    else if(parsed.questions){qs=parsed.questions;guide=parsed.guide;}
+    S.genQuestions=qs;S.genGuide=guide;
+    renderGeneratorResults();
+    toast(`成功生成 ${qs.length} 組題目！`,'success');
+  }catch(e){toast(`生成失敗：${e.message}`,'error');}
+  finally{btn.disabled=false;btn.innerHTML='⚡ 根據內容生成題目';}
+}
 
-      // ══════ Gemini API ══════
-      async function callGemini(payload, apiKey) {
-        if (!apiKey || !apiKey.trim()) throw new Error('請先輸入有效的 Gemini API Key。');
-        // 退避等待時間：1s, 5s, 15s, 35s, 65s
-        const delays = [1000, 5000, 15000, 35000, 65000];
-        let lastError = null;
-        for (let i = 0; i < delays.length; i++) {
-          try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-            });
-            if (res.ok) return await res.json();
-            const errBody = await res.json().catch(() => ({}));
-            const msg = errBody?.error?.message || `狀態碼 ${res.status}`;
-            // 401/403：Key 錯誤，不重試
-            if (res.status === 401 || res.status === 403) throw new Error(`API 金鑰錯誤: ${msg}`);
-            // 429：配額超限，自動等待後重試（從錯誤訊息萃取等待秒數）
-            if (res.status === 429) {
-              const waitMatch = msg.match(/retry in ([\d.]+)s/i);
-              const waitSec = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) : delays[i];
-              if (i < delays.length - 1) {
-                toast(`API 使用量已達上限，${Math.ceil(waitSec / 1000)} 秒後自動重試…`, 'info');
-                await new Promise(r => setTimeout(r, waitSec));
-                continue;
-              }
-              throw new Error(`API 請求過於頻繁，請等待約 ${Math.ceil(waitSec / 1000)} 秒後再試`);
-            }
-            // 400 其他：Bad Request，不重試
-            if (res.status === 400) throw new Error(`API 請求格式錯誤: ${msg}`);
-            // 其他 4xx/5xx：等待後重試
-            lastError = new Error(`伺服器暫時無回應 (${res.status}): ${msg}`);
-          } catch (e) {
-            // 不重試的錯誤直接拋出
-            if (e.message.startsWith('API 金鑰錯誤') || e.message.startsWith('API 請求格式錯誤')) throw e;
-            lastError = e;
-          }
-          if (i < delays.length - 1) {
-            await new Promise(r => setTimeout(r, delays[i]));
-          }
-        }
-        throw lastError || new Error('無法連線至 AI 伺服器，請確認網路狀態或稍後再試。');
-      }
-      function parseAIJson(text) {
-        let clean = text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
-        try { return JSON.parse(clean); } catch { }
-        const m = clean.match(/\{[\s\S]*\}/) || clean.match(/\[[\s\S]*\]/);
-        if (m) try { return JSON.parse(m[0]); } catch { }
-        throw new Error('AI 回傳格式不正確，請重試');
-      }
-
-      // ══════ 安全工具函式 ══════
-      function safeCatCode(category) {
-        if (!category) return '?';
-        const s = String(category).trim();
-        return s.split(' ')[0] || s;
-      }
-      // 放寬驗證：只要有陣列且長度為5、每項有response和category就接受
-      function safeGuide(raw) {
-        if (!raw) return DEFAULT_GUIDE;
-        const chk = arr => Array.isArray(arr) && arr.length === 5 && arr.every(r => r && r.response && r.category);
-        if (chk(raw.positive_analysis) && chk(raw.negative_analysis)) return raw;
-        return DEFAULT_GUIDE;
-      }
-
-      // ══════ 生成題目 ══════
-      async function generateQuestions() {
-        const apiKey = document.getElementById('api-key').value.trim();
-        const desc = document.getElementById('description').value.trim();
-        const prompt = document.getElementById('prompt-text').value;
-        const btn = document.getElementById('gen-btn');
-        if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
-        if (!desc && !S.files.length) { toast('請輸入描述或上傳素材', 'error'); return; }
-        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 分析內容中…';
-        try {
-          let payload;
-          if (S.files.length > 0) {
-            const parts = [{ text: `[System Instruction]\n${prompt}\n\n[User Request]\n${desc || '請根據提供的圖片/影片，深入分析產品功能後生成題目。'}` }];
-            for (const f of S.files) { try { parts.push({ inlineData: { mimeType: f.file.type, data: await fileToBase64(f.file) } }); } catch { } }
-            payload = { contents: [{ role: 'user', parts }] };
-          } else {
-            payload = { contents: [{ parts: [{ text: desc }] }], systemInstruction: { parts: [{ text: prompt }] } };
-          }
-          const result = await callGemini(payload, apiKey);
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!text) throw new Error('AI 未回傳文字');
-          const parsed = parseAIJson(text);
-          let qs = [], guide = null;
-          if (Array.isArray(parsed)) qs = parsed;
-          else if (parsed.questions) { qs = parsed.questions; guide = parsed.guide; }
-          S.genQuestions = qs; S.genGuide = guide;
-          renderGeneratorResults();
-          toast(`成功生成 ${qs.length} 組題目！`, 'success');
-        } catch (e) { toast(`生成失敗：${e.message}`, 'error'); }
-        finally { btn.disabled = false; btn.innerHTML = '⚡ 根據內容生成題目'; }
-      }
-
-      // ══════ 渲染產生器結果 ══════
-      function renderGenExportBtns() {
-        const wrap = document.getElementById('gen-export-btns');
-        if (!S.genQuestions.length) { wrap.style.display = 'none'; return; }
-        wrap.style.display = 'flex';
-        wrap.innerHTML = `<button class="btn btn-sm btn-green" onclick="exportExcel()">📊 匯出 Excel</button>
+// ══════ 渲染產生器結果 ══════
+function renderGenExportBtns(){
+  const wrap=document.getElementById('gen-export-btns');
+  if(!S.genQuestions.length){wrap.style.display='none';return;}
+  wrap.style.display='flex';
+  wrap.innerHTML=`<button class="btn btn-sm btn-green" onclick="exportExcel()">📊 匯出 Excel</button>
     <button class="btn btn-sm btn-purple" onclick="exportWord()">📄 匯出 Word (Forms)</button>
     <button class="btn btn-sm btn-blue" onclick="showScreenshot()">👁 題目總覽截圖</button>`;
-      }
+}
 
-      function renderGeneratorResults() {
-        const qs = S.genQuestions;
-        if (!qs.length) return;
-        // AMIOR 統計列
-        const counts = { A: 0, O: 0, M: 0, I: 0, R: 0 };
-        qs.forEach(q => { if (counts[q.amior] !== undefined) counts[q.amior]++; });
-        const bar = document.getElementById('amior-bar');
-        bar.style.display = 'flex';
-        bar.innerHTML = '<span style="font-size:12px;font-weight:700;color:var(--text2);">整體分佈：</span>' +
-          Object.entries(counts).filter(([, v]) => v > 0).map(([k, v]) =>
-            `<span style="display:flex;align-items:center;gap:5px;"><span class="amior-dot" style="background:${CAT_COLORS[k]}"></span><span style="font-size:12px;font-weight:700;">${SHORT_NAMES[k]}: ${v}題</span></span>`
-          ).join('');
-        // 題目卡片
-        document.getElementById('questions-list').innerHTML = qs.flatMap((q, idx) => [
-          { ...q, type: 'pos', label: '正向題', text: q.positive, seq: idx * 2 + 1, groupID: String(q.id) },
-          { ...q, type: 'neg', label: '反向題', text: q.negative, seq: idx * 2 + 2, groupID: String(q.id) }
-        ]).map(item => `
-    <div class="q-card ${S.refineTarget === item.groupID ? 'selected' : ''}" onclick="selectRefine('${item.groupID}')">
+function renderGeneratorResults(){
+  const qs=S.genQuestions;
+  if(!qs.length) return;
+  // AMIOR 統計列
+  const counts={A:0,O:0,M:0,I:0,R:0};
+  qs.forEach(q=>{if(counts[q.amior]!==undefined) counts[q.amior]++;});
+  const bar=document.getElementById('amior-bar');
+  bar.style.display='flex';
+  bar.innerHTML='<span style="font-size:12px;font-weight:700;color:var(--text2);">整體分佈：</span>'+
+    Object.entries(counts).filter(([,v])=>v>0).map(([k,v])=>
+      `<span style="display:flex;align-items:center;gap:5px;"><span class="amior-dot" style="background:${CAT_COLORS[k]}"></span><span style="font-size:12px;font-weight:700;">${SHORT_NAMES[k]}: ${v}題</span></span>`
+    ).join('');
+  // 題目卡片
+  document.getElementById('questions-list').innerHTML=qs.flatMap((q,idx)=>[
+    {...q,type:'pos',label:'正向題',text:q.positive,seq:idx*2+1,groupID:String(q.id)},
+    {...q,type:'neg',label:'反向題',text:q.negative,seq:idx*2+2,groupID:String(q.id)}
+  ]).map(item=>`
+    <div class="q-card ${S.refineTarget===item.groupID?'selected':''}" onclick="selectRefine('${item.groupID}')">
       <div class="q-card-head">
         <span class="badge" style="background:#1e293b;color:#fff;">Q${item.seq}</span>
-        <span class="badge ${item.type === 'pos' ? 'badge-pos' : 'badge-neg'}">${item.label}</span>
+        <span class="badge ${item.type==='pos'?'badge-pos':'badge-neg'}">${item.label}</span>
       </div>
-      <div class="q-card-text">${String(item.text || '')}</div>
+      <div class="q-card-text">${String(item.text||'')}</div>
       <div class="q-card-reason">
-        <span style="font-weight:700;color:var(--accent);">${String(item.amior || '?')}</span>
-        <span style="font-weight:600;color:var(--text);">（${String(item.categoryName || '')}）</span>：${String(item.reason || '')}
+        <span style="font-weight:700;color:var(--accent);">${String(item.amior||'?')}</span>
+        <span style="font-weight:600;color:var(--text);">（${String(item.categoryName||'')}）</span>：${String(item.reason||'')}
       </div>
     </div>`).join('');
-        document.getElementById('refine-bar').style.display = 'flex';
-        updateRefineBadge();
-        renderGuide();
-        renderGenExportBtns();
-      }
+  document.getElementById('refine-bar').style.display='flex';
+  updateRefineBadge();
+  renderGuide();
+  renderGenExportBtns();
+}
 
-      function selectRefine(id) {
-        S.refineTarget = String(id);
-        document.querySelectorAll('.q-card').forEach(c => c.classList.remove('selected'));
-        document.querySelectorAll('.q-card').forEach(c => {
-          if ((c.getAttribute('onclick') || '').includes(`'${id}'`)) c.classList.add('selected');
-        });
-        updateRefineBadge();
-      }
-      function updateRefineBadge() {
-        const badge = document.getElementById('refine-target-badge');
-        const btn = document.getElementById('toggle-all-btn');
-        if (S.refineTarget === 'ALL') {
-          badge.textContent = '針對：全體題目'; badge.style.background = 'rgba(139,92,246,.15)'; badge.style.color = '#6d28d9'; btn.textContent = '改為單題';
-        } else {
-          badge.textContent = `針對：題組 ${S.refineTarget}`; badge.style.background = 'rgba(79,70,229,.12)'; badge.style.color = 'var(--accent)'; btn.textContent = '切換全體';
-        }
-      }
-      function toggleRefineAll() {
-        S.refineTarget = S.refineTarget === 'ALL' ? '1' : 'ALL'; updateRefineBadge();
-      }
+function selectRefine(id){
+  S.refineTarget=String(id);
+  document.querySelectorAll('.q-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.q-card').forEach(c=>{
+    if((c.getAttribute('onclick')||'').includes(`'${id}'`)) c.classList.add('selected');
+  });
+  updateRefineBadge();
+}
+function updateRefineBadge(){
+  const badge=document.getElementById('refine-target-badge');
+  const btn=document.getElementById('toggle-all-btn');
+  if(S.refineTarget==='ALL'){
+    badge.textContent='針對：全體題目';badge.style.background='rgba(139,92,246,.15)';badge.style.color='#6d28d9';btn.textContent='改為單題';
+  }else{
+    badge.textContent=`針對：題組 ${S.refineTarget}`;badge.style.background='rgba(79,70,229,.12)';badge.style.color='var(--accent)';btn.textContent='切換全體';
+  }
+}
+function toggleRefineAll(){
+  S.refineTarget=S.refineTarget==='ALL'?'1':'ALL';updateRefineBadge();
+}
 
-      // ★ 判讀指南：完整顯示 reason，含換行
-      function renderGuide() {
-        const guide = safeGuide(S.genGuide);
-        document.getElementById('guide-section').innerHTML = `
+// ★ 判讀指南：完整顯示 reason，含換行
+function renderGuide(){
+  const guide=safeGuide(S.genGuide);
+  document.getElementById('guide-section').innerHTML=`
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
       <div class="card-title">💡 Kano 模型判讀指南</div>
       <div class="guide-grid">
         <div class="guide-col">
           <h4>正向題反應分析</h4>
-          ${guide.positive_analysis.map(r => `
+          ${guide.positive_analysis.map(r=>`
             <div class="guide-row">
-              <span class="resp">${String(r.response || '')}</span>
+              <span class="resp">${String(r.response||'')}</span>
               <span class="arrow">→</span>
               <span class="cat">（${safeCatCode(r.category)}）</span>
-              <span class="guide-reason">${String(r.reason || '').replace(/^理由[：:]\s*/, '')}</span>
+              <span class="guide-reason">${String(r.reason||'').replace(/^理由[：:]\s*/,'')}</span>
             </div>`).join('')}
         </div>
         <div class="guide-col">
           <h4>反向題反應分析</h4>
-          ${guide.negative_analysis.map(r => `
+          ${guide.negative_analysis.map(r=>`
             <div class="guide-row">
-              <span class="resp">${String(r.response || '')}</span>
+              <span class="resp">${String(r.response||'')}</span>
               <span class="arrow">→</span>
               <span class="cat">（${safeCatCode(r.category)}）</span>
-              <span class="guide-reason">${String(r.reason || '').replace(/^理由[：:]\s*/, '')}</span>
+              <span class="guide-reason">${String(r.reason||'').replace(/^理由[：:]\s*/,'')}</span>
             </div>`).join('')}
         </div>
       </div>
     </div>`;
+}
+
+// ══════════════════════════════════════════
+// AI 優化題目（完整 null 防護 + 正確 ID 比對）
+// ══════════════════════════════════════════
+async function refineQuestion(){
+  const apiKey=document.getElementById('api-key').value.trim();
+  const instr=document.getElementById('refine-input').value.trim();
+  if(!apiKey){toast('請先輸入 Gemini API Key','error');return;}
+  if(!instr){toast('請輸入修改需求','error');return;}
+  if(!S.genQuestions.length){toast('請先生成題目','error');return;}
+  const btn=document.getElementById('refine-submit-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> 優化中…';
+  const isAll=S.refineTarget==='ALL';
+  const std=JSON.stringify(['我非常喜歡','我期望如此','無所謂','可以接受','無法接受']);
+  const guideReq=`請同步更新 guide 物件，positive_analysis 和 negative_analysis 各嚴格包含以下 5 個回答：${std}。每個 reason 欄位必須結合功能情境具體說明，至少 15 字，禁止通用描述。category 必須明確單一，禁止 "A/O" 等模糊寫法。`;
+
+  // 每個題目的必要欄位說明，讓 AI 知道要輸出哪些欄位
+  const fieldSpec=`每個題目物件必須包含：id, feature, amior, categoryName, reason, positive, negative, execution_advice, modification_method`;
+
+  let sysPrompt='';
+  if(isAll){
+    sysPrompt=`你是資深PM，請根據使用者需求深度修改所有 Kano 題目，題目必須具體情境化，不能籠統。${fieldSpec}。${guideReq}\n目前所有題目：${JSON.stringify(S.genQuestions,null,2)}\n嚴格回傳 JSON：{"questions":[...],"guide":{...}}，不得包含任何其他文字。`;
+  }else{
+    const target=S.genQuestions.find(q=>String(q.id)===String(S.refineTarget));
+    if(!target){toast(`找不到題組 ${S.refineTarget}，請先點選題目卡片`,'error');btn.disabled=false;btn.textContent='重新生成';return;}
+    sysPrompt=`你是資深PM，請根據使用者需求深度修改指定 Kano 題目，題目必須具體情境化。${fieldSpec}。${guideReq}\n需修改的題目：${JSON.stringify(target,null,2)}\n全部題目列表（供判讀指南參考）：${JSON.stringify(S.genQuestions,null,2)}\n嚴格回傳 JSON：{"refinedQuestion":{...完整欄位...},"guide":{...}}，不得包含任何其他文字。`;
+  }
+  try{
+    const result=await callGemini({contents:[{parts:[{text:`修改需求：${instr}`}]}],systemInstruction:{parts:[{text:sysPrompt}]}},apiKey);
+    const text=result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if(!text) throw new Error('AI 未回傳文字');
+    const parsed=parseAIJson(text);
+
+    // guide 驗證：只要有 5 個項目且每個有 response+category 就接受（放寬 reason 強制要求）
+    const validG=g=>{
+      if(!g) return false;
+      const chk=arr=>Array.isArray(arr)&&arr.length===5&&arr.every(r=>r&&r.response&&r.category);
+      return chk(g.positive_analysis)&&chk(g.negative_analysis);
+    };
+    // 優先使用 AI 回傳的 guide，只有完全無效才 fallback
+    const newGuide=validG(parsed.guide)?parsed.guide:null;
+
+    if(isAll){
+      if(!Array.isArray(parsed.questions)||parsed.questions.length===0)
+        throw new Error('AI 回傳缺少 questions 陣列');
+      S.genQuestions=parsed.questions;
+      // 只要 AI 有回傳 guide 就更新，否則保留現有
+      if(newGuide) S.genGuide=newGuide;
+      renderGeneratorResults();
+      // 強制重新渲染判讀指南（確保顯示最新）
+      renderGuide();
+      toast('全體題目優化完成！','success');
+
+    }else{
+      if(!parsed.refinedQuestion)
+        throw new Error('AI 回傳缺少 refinedQuestion 物件');
+      const idx=S.genQuestions.findIndex(q=>String(q.id)===String(S.refineTarget));
+      if(idx===-1) throw new Error('無法比對題目索引，請重新點選題目後再試');
+
+      // 保留原始 id，合併所有欄位
+      const original=S.genQuestions[idx];
+      const updated={
+        ...original,                    // 保留原有欄位作為底
+        ...parsed.refinedQuestion,      // 用 AI 回傳覆蓋
+        id:original.id                  // 強制保留原始 id 不被 AI 改掉
+      };
+      S.genQuestions[idx]=updated;
+
+      // 只要 AI 有回傳 guide 就更新
+      if(newGuide) S.genGuide=newGuide;
+
+      renderGeneratorResults();
+      // 強制重新渲染判讀指南
+      renderGuide();
+      // 捲動到被修改的題目
+      setTimeout(()=>{
+        const cards=document.querySelectorAll('.q-card.selected');
+        if(cards.length) cards[0].scrollIntoView({behavior:'smooth',block:'center'});
+      },100);
+      toast(`題組 ${S.refineTarget} 優化完成！新問題已更新。`,'success');
+    }
+    document.getElementById('refine-input').value='';
+  }catch(e){toast(`優化失敗：${e.message}`,'error');console.error(e);}
+  finally{btn.disabled=false;btn.textContent='重新生成';}
+}
+
+// ══════ 專案 ══════
+function saveProject(){
+  const d={description:document.getElementById('description').value,prompt:document.getElementById('prompt-text').value,generatedQuestions:S.genQuestions,generatedGuide:S.genGuide,timestamp:new Date().toISOString()};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
+  a.download=`Kano_Project_${new Date().toISOString().split('T')[0]}.json`;a.click();
+  toast('專案儲存成功','success');
+}
+function loadProject(input){
+  const file=input.files?.[0];if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{try{
+    const d=JSON.parse(e.target.result);
+    if(d.description) document.getElementById('description').value=d.description;
+    if(d.prompt) document.getElementById('prompt-text').value=d.prompt;
+    S.genQuestions=d.generatedQuestions||[];S.genGuide=d.generatedGuide||null;
+    if(S.genQuestions.length) renderGeneratorResults();
+    toast('專案讀取成功！','success');
+  }catch{toast('讀取失敗：格式錯誤','error');}};
+  r.readAsText(file);
+}
+
+// ══════ 匯出 ══════
+function exportExcel(){
+  if(!S.genQuestions.length){toast('無題目可匯出','error');return;}
+  if(!window.XLSX){toast('Excel 元件載入中，請稍後','error');return;}
+  const ws1=[['題組','功能情境','AMIOR分類','心理理由','正向問句','反向問句'],...S.genQuestions.map(q=>[q.id,q.feature,`${q.amior} (${q.categoryName})`,q.reason,q.positive,q.negative])];
+  const ws2=[['題號','功能特徵','正向題目','反向題目'],...S.genQuestions.map((q,i)=>[`Q${i+1}`,q.feature,q.positive,q.negative])];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws1),'題目設計總覽');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ws2),'題型');
+  XLSX.writeFile(wb,`Kano_Questions_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('Excel 匯出成功！','success');
+}
+async function exportWord(){
+  if(!S.genQuestions.length){toast('無題目可匯出','error');return;}
+  if(!window.docx){toast('Word 套件載入中，請稍後','error');return;}
+  const{Document,Packer,Paragraph}=window.docx;
+  const children=[];let n=1;
+  S.genQuestions.forEach(q=>{
+    children.push(new Paragraph({text:`${n}. ${q.positive} *`}));
+    ['A. 我非常喜歡','B. 我期望如此','C. 無所謂','D. 可以接受','E. 無法接受'].forEach(o=>children.push(new Paragraph({text:o})));
+    children.push(new Paragraph({text:''}));n++;
+    children.push(new Paragraph({text:`${n}. ${q.negative} *`}));
+    ['A. 我非常喜歡','B. 我期望如此','C. 無所謂','D. 可以接受','E. 無法接受'].forEach(o=>children.push(new Paragraph({text:o})));
+    children.push(new Paragraph({text:''}));n++;
+  });
+  const blob=await Packer.toBlob(new Document({sections:[{properties:{},children}]}));
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`Kano_Survey_Forms_${new Date().toISOString().split('T')[0]}.docx`;a.click();
+  URL.revokeObjectURL(a.href);toast('Word 匯出成功！請直接上傳至 Forms','success');
+}
+function showScreenshot(){
+  document.getElementById('screenshot-tbody').innerHTML=S.genQuestions.map(q=>`<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:10px;font-weight:700;">${q.id}</td><td style="padding:10px;">${q.feature||''}</td><td style="padding:10px;">${q.positive||''}</td><td style="padding:10px;">${q.negative||''}</td></tr>`).join('');
+  document.getElementById('screenshot-modal').style.display='flex';
+}
+function closeModal(){document.getElementById('screenshot-modal').style.display='none';}
+
+// ══════ 資料工具 ══════
+function normalizeAnswer(raw){
+  const s=String(raw||'').trim();
+  if(s.includes('無法')||s.includes('不喜歡')||s.includes('討厭')) return '無法接受';
+  if(s.includes('喜歡')) return '我非常喜歡';
+  if(s.includes('期望')||s.includes('理所當然')||s.includes('應該')||s.includes('當然')) return '我期望如此';
+  if(s.includes('無所謂')||s.includes('沒差')||s.includes('無感')) return '無所謂';
+  if(s.includes('接受')||s.includes('可以')||s.includes('忍受')) return '可以接受';
+  return s;
+}
+function getQuadrantCat(si,dsi){
+  if(si>=0.5&&dsi>=-0.5) return 'A';
+  if(si>=0.5&&dsi<-0.5)  return 'O';
+  if(si<0.5&&dsi>=-0.5)  return 'I';
+  return 'M';
+}
+
+// ══════ Excel 上傳 ══════
+function uploadExcel(input){
+  const file=input.files?.[0];if(!file) return;
+  if(!window.XLSX){toast('XLSX 元件載入中','error');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+      if(!rows||rows.length<2){toast('Excel 無有效數據','error');return;}
+      const headers=rows[0],dataRows=rows.slice(1),START=6;
+      const items=[];let qIdx=0;
+      const guide=safeGuide(S.genGuide);
+      const gl={pos:{},neg:{}};
+      const gc=str=>{const s=String(str||'').trim();return(s.split(' ')[0]||s).toUpperCase();};
+      guide.positive_analysis.forEach(r=>{if(r&&r.response&&r.category) gl.pos[normalizeAnswer(r.response)]=gc(r.category);});
+      guide.negative_analysis.forEach(r=>{if(r&&r.response&&r.category) gl.neg[normalizeAnswer(r.response)]=gc(r.category);});
+      for(let i=START;i<headers.length;i++){
+        const h=headers[i];if(!h) continue;
+        const isNeg=qIdx%2!==0;
+        const counts={A:0,O:0,M:0,I:0,R:0,Q:0};const rc={};
+        dataRows.forEach(row=>{
+          const ans=normalizeAnswer((row[i]||'').toString());
+          rc[ans]=(rc[ans]||0)+1;
+          const cat=(isNeg?gl.neg:gl.pos)[ans];
+          if(cat&&counts[cat]!==undefined) counts[cat]++;
+        });
+        const tot=counts.A+counts.O+counts.M+counts.I+counts.R||1;
+        const si=+((counts.A+counts.O)/tot).toFixed(3);
+        const dsi=+((counts.O+counts.M)/tot*-1).toFixed(3);
+        const linked=S.genQuestions[qIdx]||null;
+        items.push({id:`Q${qIdx+1}`,text:h,isPos:!isNeg,displayId:`Q${qIdx+1}`,si,dsi,category:getQuadrantCat(si,dsi),designCategory:linked?.amior||null,actualCategory:getQuadrantCat(si,dsi),stats:counts,answerCounts:rc,execution_advice:linked?.execution_advice||null,modification_method:linked?.modification_method||null,feature:linked?.feature||null});
+        qIdx++;
       }
+      setData({meta:{totalRespondents:dataRows.length,analysisDate:new Date().toISOString().split('T')[0]},items});
+      toast(`解析完成！共 ${items.length} 個題目`,'success');
+    }catch(err){toast('解析失敗：'+err.message,'error');console.error(err);}
+  };
+  reader.readAsBinaryString(file);
+}
+function loadDemoData(){setData(DEMO_DATA);toast('範例數據載入成功！','success');}
+function setData(d){
+  S.data=d;
+  S._currentDataVersion++; // 資料更新，讓報告下次切換時重新渲染
+  document.getElementById('stat-respondents').textContent=d.meta.totalRespondents;
+  document.getElementById('stat-questions').textContent=d.items.length;
+  generateAutoContent(d);
+  updateScatterChart();
+  renderQTable();
+  renderSurvey();
+}
 
-      // ══════════════════════════════════════════
-      // AI 優化題目（完整 null 防護 + 正確 ID 比對）
-      // ══════════════════════════════════════════
-      async function refineQuestion() {
-        const apiKey = document.getElementById('api-key').value.trim();
-        const instr = document.getElementById('refine-input').value.trim();
-        if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
-        if (!instr) { toast('請輸入修改需求', 'error'); return; }
-        if (!S.genQuestions.length) { toast('請先生成題目', 'error'); return; }
-        const btn = document.getElementById('refine-submit-btn');
-        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 優化中…';
-        const isAll = S.refineTarget === 'ALL';
-        const std = JSON.stringify(['我非常喜歡', '我期望如此', '無所謂', '可以接受', '無法接受']);
-        const guideReq = `請同步更新 guide 物件，positive_analysis 和 negative_analysis 各嚴格包含以下 5 個回答：${std}。每個 reason 欄位必須結合功能情境具體說明，至少 15 字，禁止通用描述。category 必須明確單一，禁止 "A/O" 等模糊寫法。`;
+// ══════ 自動摘要 ══════
+function generateAutoContent(d){
+  if(!d.items.length) return;
+  const items=d.items,total=items.length;
+  const count={A:0,O:0,M:0,I:0,R:0,Q:0};
+  items.forEach(i=>{if(count[i.category]!==undefined) count[i.category]++;});
+  const pct=n=>total===0?'0%':`${Math.round(n/total*100)}%`;
+  const maxCat=Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b);
+  const mList=items.filter(i=>i.category==='M').map(i=>i.id).join('、')||'無';
+  const oList=items.filter(i=>i.category==='O').map(i=>i.id).join('、')||'無';
+  const aList=items.filter(i=>i.category==='A').map(i=>i.id).join('、')||'無';
+  S.summaryHighlights=[
+    `1）分佈總覽：\n  本次分析共 ${total} 題，以「${(CAT_NAMES[maxCat]||maxCat).split(' ')[0]}」佔比最高 (${count[maxCat]}題, ${pct(count[maxCat])})。`,
+    `2）關鍵屬性：\n  ・基本(M)：${mList} (避免不滿的底線)\n  ・期望(O)：${oList} (提升滿意度的主力)\n  ・魅力(A)：${aList} (差異化亮點)`,
+    count.M>0?'3）優先行動：\n  基本需求(M)存在缺口，需最優先修復以止血，接著再優化期望需求(O)。':count.O>0?'3）優先行動：\n  基礎功能穩固，建議集中資源在期望需求(O)的體驗優化。':'3）優先行動：\n  目前分佈較為平均，建議依照產品策略決定發展方向。'
+  ].join('\n\n');
+  S.analysisReason=count.M>total*0.3?'1. 基礎建設期：\n超過 30% 為基本需求(M)，產品仍處於「補足基礎」階段，玩家對於基礎功能的完整性非常在意。\n\n':count.A>total*0.3?'1. 創新紅利期：\n大量魅力需求(A)，顯示本次測試的功能帶給玩家許多驚喜，具有很好的行銷潛力。\n\n':'1. 體驗優化期：\n分佈均衡或以期望需求(O)為主，戰場在於「做得比競品更好」，細節打磨是關鍵。\n\n';
+  S.improvementItems=[...items].sort((a,b)=>{
+    const diff=(CAT_PRIORITY[a.category]||9)-(CAT_PRIORITY[b.category]||9);
+    return diff!==0?diff:Math.abs(b.dsi)-Math.abs(a.dsi);
+  });
+}
 
-        // 每個題目的必要欄位說明，讓 AI 知道要輸出哪些欄位
-        const fieldSpec = `每個題目物件必須包含：id, feature, amior, categoryName, reason, positive, negative, execution_advice, modification_method`;
+// ══════════════════════════════════════════
+// Kano 散佈圖
+// ★ 修正：X 軸 0→-1，刻度每 0.1，中線，象限文字，點位合併+Force Simulation
+// ══════════════════════════════════════════
+const CURVE={
+  A:[{x:0,y:0.5},{x:-0.1,y:0.505},{x:-0.2,y:0.52},{x:-0.3,y:0.545},{x:-0.4,y:0.58},{x:-0.5,y:0.625},{x:-0.6,y:0.68},{x:-0.7,y:0.745},{x:-0.8,y:0.82},{x:-0.9,y:0.905},{x:-1,y:1}],
+  O:[{x:0,y:0},{x:-0.1,y:0.1},{x:-0.2,y:0.2},{x:-0.3,y:0.3},{x:-0.4,y:0.4},{x:-0.5,y:0.5},{x:-0.6,y:0.6},{x:-0.7,y:0.7},{x:-0.8,y:0.8},{x:-0.9,y:0.9},{x:-1,y:1}],
+  M:[{x:0,y:0},{x:-0.1,y:0.095},{x:-0.2,y:0.18},{x:-0.3,y:0.255},{x:-0.4,y:0.32},{x:-0.5,y:0.375},{x:-0.6,y:0.42},{x:-0.7,y:0.455},{x:-0.8,y:0.48},{x:-0.9,y:0.495},{x:-1,y:0.5}],
+  I:[{x:0,y:0.5},{x:-0.1,y:0.5},{x:-0.2,y:0.5},{x:-0.3,y:0.5},{x:-0.4,y:0.5},{x:-0.5,y:0.5},{x:-0.6,y:0.5},{x:-0.7,y:0.5},{x:-0.8,y:0.5},{x:-0.9,y:0.5},{x:-1,y:0.5}],
+  R:[{x:0,y:1},{x:-0.1,y:0.9},{x:-0.2,y:0.8},{x:-0.3,y:0.7},{x:-0.4,y:0.6},{x:-0.5,y:0.5},{x:-0.6,y:0.4},{x:-0.7,y:0.3},{x:-0.8,y:0.2},{x:-0.9,y:0.1},{x:-1,y:0}]
+};
 
-        let sysPrompt = '';
-        if (isAll) {
-          sysPrompt = `你是資深PM，請根據使用者需求深度修改所有 Kano 題目，題目必須具體情境化，不能籠統。${fieldSpec}。${guideReq}\n目前所有題目：${JSON.stringify(S.genQuestions, null, 2)}\n嚴格回傳 JSON：{"questions":[...],"guide":{...}}，不得包含任何其他文字。`;
-        } else {
-          const target = S.genQuestions.find(q => String(q.id) === String(S.refineTarget));
-          if (!target) { toast(`找不到題組 ${S.refineTarget}，請先點選題目卡片`, 'error'); btn.disabled = false; btn.textContent = '重新生成'; return; }
-          sysPrompt = `你是資深PM，請根據使用者需求深度修改指定 Kano 題目，題目必須具體情境化。${fieldSpec}。${guideReq}\n需修改的題目：${JSON.stringify(target, null, 2)}\n全部題目列表（供判讀指南參考）：${JSON.stringify(S.genQuestions, null, 2)}\n嚴格回傳 JSON：{"refinedQuestion":{...完整欄位...},"guide":{...}}，不得包含任何其他文字。`;
-        }
-        try {
-          const result = await callGemini({ contents: [{ parts: [{ text: `修改需求：${instr}` }] }], systemInstruction: { parts: [{ text: sysPrompt }] } }, apiKey);
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!text) throw new Error('AI 未回傳文字');
-          const parsed = parseAIJson(text);
+// 象限+中線插件
+const quadrantPlugin={
+  id:'kanoQuadrant',
+  beforeDatasetsDraw(chart){
+    const{ctx,chartArea,scales}=chart;if(!chartArea) return;
+    const mx=scales.x.getPixelForValue(-0.5);
+    const my=scales.y.getPixelForValue(0.5);
+    const{left,right,top,bottom}=chartArea;
+    ctx.save();
+    // 中間虛線
+    ctx.setLineDash([6,4]);ctx.lineWidth=1;ctx.strokeStyle='rgba(148,163,184,0.65)';
+    ctx.beginPath();ctx.moveTo(mx,top);ctx.lineTo(mx,bottom);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(left,my);ctx.lineTo(right,my);ctx.stroke();
+    ctx.setLineDash([]);
+    // 象限大字
+    ctx.font='bold 16px "Noto Sans TC",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(59,130,246,0.13)';ctx.fillText('魅力屬性 (Attractive)',(left+mx)/2,(top+my)/2);
+    ctx.fillStyle='rgba(249,115,22,0.13)';ctx.fillText('期望屬性 (One-dimensional)',(mx+right)/2,(top+my)/2);
+    ctx.fillStyle='rgba(100,116,139,0.13)';ctx.fillText('無差異屬性 (Indifferent)',(left+mx)/2,(my+bottom)/2);
+    ctx.fillStyle='rgba(239,68,68,0.13)';ctx.fillText('基本屬性 (Must-be)',(mx+right)/2,(my+bottom)/2);
+    ctx.restore();
+  }
+};
 
-          // guide 驗證：只要有 5 個項目且每個有 response+category 就接受（放寬 reason 強制要求）
-          const validG = g => {
-            if (!g) return false;
-            const chk = arr => Array.isArray(arr) && arr.length === 5 && arr.every(r => r && r.response && r.category);
-            return chk(g.positive_analysis) && chk(g.negative_analysis);
-          };
-          // 優先使用 AI 回傳的 guide，只有完全無效才 fallback
-          const newGuide = validG(parsed.guide) ? parsed.guide : null;
+// 標籤插件（含白色描邊）
+const labelPlugin={
+  id:'kanoLabels',
+  afterDatasetsDraw(chart){
+    const ds=chart.data.datasets.find(d=>d.id==='scatter');
+    if(!ds||!ds.data.length) return;
+    const{ctx,scales}=chart;
+    ctx.save();
+    ds.data.forEach(pt=>{
+      if(!pt.label) return;
+      const x=scales.x.getPixelForValue(pt.x);
+      const y=scales.y.getPixelForValue(pt.y);
+      ctx.font='bold 11px "IBM Plex Mono",monospace';
+      ctx.textAlign='center';ctx.textBaseline='bottom';
+      ctx.strokeStyle='rgba(255,255,255,0.95)';ctx.lineWidth=3;
+      ctx.strokeText(pt.label,x,y-9);
+      ctx.fillStyle=pt.labelColor||'#1e293b';
+      ctx.fillText(pt.label,x,y-9);
+    });
+    ctx.restore();
+  }
+};
 
-          if (isAll) {
-            if (!Array.isArray(parsed.questions) || parsed.questions.length === 0)
-              throw new Error('AI 回傳缺少 questions 陣列');
-            S.genQuestions = parsed.questions;
-            // 只要 AI 有回傳 guide 就更新，否則保留現有
-            if (newGuide) S.genGuide = newGuide;
-            renderGeneratorResults();
-            // 強制重新渲染判讀指南（確保顯示最新）
-            renderGuide();
-            toast('全體題目優化完成！', 'success');
-
-          } else {
-            if (!parsed.refinedQuestion)
-              throw new Error('AI 回傳缺少 refinedQuestion 物件');
-            const idx = S.genQuestions.findIndex(q => String(q.id) === String(S.refineTarget));
-            if (idx === -1) throw new Error('無法比對題目索引，請重新點選題目後再試');
-
-            // 保留原始 id，合併所有欄位
-            const original = S.genQuestions[idx];
-            const updated = {
-              ...original,                    // 保留原有欄位作為底
-              ...parsed.refinedQuestion,      // 用 AI 回傳覆蓋
-              id: original.id                  // 強制保留原始 id 不被 AI 改掉
-            };
-            S.genQuestions[idx] = updated;
-
-            // 只要 AI 有回傳 guide 就更新
-            if (newGuide) S.genGuide = newGuide;
-
-            renderGeneratorResults();
-            // 強制重新渲染判讀指南
-            renderGuide();
-            // 捲動到被修改的題目
-            setTimeout(() => {
-              const cards = document.querySelectorAll('.q-card.selected');
-              if (cards.length) cards[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-            toast(`題組 ${S.refineTarget} 優化完成！新問題已更新。`, 'success');
+function buildChartConfig(isReport=false){
+  return{
+    data:{
+      datasets:[
+        {type:'line',label:'魅力 A',data:CURVE.A,borderColor:'rgba(147,197,253,0.85)',borderWidth:2,pointRadius:0,tension:0.4,fill:false,order:10},
+        {type:'line',label:'期望 O',data:CURVE.O,borderColor:'rgba(253,186,116,0.85)',borderWidth:2,pointRadius:0,tension:0.4,fill:false,order:10},
+        {type:'line',label:'基本 M',data:CURVE.M,borderColor:'rgba(252,165,165,0.85)',borderWidth:2,pointRadius:0,tension:0.4,fill:false,order:10},
+        {type:'line',label:'無差異 I',data:CURVE.I,borderColor:'rgba(148,163,184,0.7)',borderWidth:1.5,pointRadius:0,fill:false,order:10},
+        {type:'line',label:'反向 R',data:CURVE.R,borderColor:'rgba(134,239,172,0.85)',borderWidth:1.5,borderDash:[6,4],pointRadius:0,tension:0,fill:false,order:10},
+        // 散佈圖（題目點）— 縮小圓點避免重疊
+        {type:'scatter',label:'題目',id:'scatter',data:[],pointRadius:4,pointHoverRadius:6,pointBorderWidth:1.5,pointBorderColor:'#fff',backgroundColor:[],borderColor:[],order:1}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      scales:{
+        x:{
+          type:'linear',
+          // 左側 0，右側 -1（reverse=true）
+          min:-1, max:0,
+          reverse:true,
+          title:{display:true,text:'不滿意係數 (DSI)',color:'#64748b',font:{size:11}},
+          // ★ X 軸顯示淡色垂直格線（對應原始 CartesianGrid）
+          grid:{color:'rgba(226,232,240,0.6)'},
+          border:{display:true},
+          ticks:{
+            color:'#94a3b8',font:{size:10},
+            // ★ 每 0.1 一個刻度，總共 11 個點（0, -0.1, -0.2 ... -1.0）
+            stepSize:0.1,
+            maxTicksLimit:11,
+            callback(val){
+              // reverse=true 時 val 為原始負數值
+              const v=Math.round(val*10)/10;
+              if(v===0) return '0';
+              if(v===-0.1) return '-0.1';
+              if(v===-0.2) return '-0.2';
+              if(v===-0.3) return '-0.3';
+              if(v===-0.4) return '-0.4';
+              if(v===-0.5) return '-0.5';
+              if(v===-0.6) return '-0.6';
+              if(v===-0.7) return '-0.7';
+              if(v===-0.8) return '-0.8';
+              if(v===-0.9) return '-0.9';
+              if(v===-1)   return '-1.0';
+              return '';
+            }
           }
-          document.getElementById('refine-input').value = '';
-        } catch (e) { toast(`優化失敗：${e.message}`, 'error'); console.error(e); }
-        finally { btn.disabled = false; btn.textContent = '重新生成'; }
-      }
-
-      // ══════ 專案 ══════
-      function saveProject() {
-        const d = { description: document.getElementById('description').value, prompt: document.getElementById('prompt-text').value, generatedQuestions: S.genQuestions, generatedGuide: S.genGuide, timestamp: new Date().toISOString() };
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' }));
-        a.download = `Kano_Project_${new Date().toISOString().split('T')[0]}.json`; a.click();
-        toast('專案儲存成功', 'success');
-      }
-      function loadProject(input) {
-        const file = input.files?.[0]; if (!file) return;
-        const r = new FileReader();
-        r.onload = e => {
-          try {
-            const d = JSON.parse(e.target.result);
-            if (d.description) document.getElementById('description').value = d.description;
-            if (d.prompt) document.getElementById('prompt-text').value = d.prompt;
-            S.genQuestions = d.generatedQuestions || []; S.genGuide = d.generatedGuide || null;
-            if (S.genQuestions.length) renderGeneratorResults();
-            toast('專案讀取成功！', 'success');
-          } catch { toast('讀取失敗：格式錯誤', 'error'); }
-        };
-        r.readAsText(file);
-      }
-
-      // ══════ 匯出 ══════
-      function exportExcel() {
-        if (!S.genQuestions.length) { toast('無題目可匯出', 'error'); return; }
-        if (!window.XLSX) { toast('Excel 元件載入中，請稍後', 'error'); return; }
-        const ws1 = [['題組', '功能情境', 'AMIOR分類', '心理理由', '正向問句', '反向問句'], ...S.genQuestions.map(q => [q.id, q.feature, `${q.amior} (${q.categoryName})`, q.reason, q.positive, q.negative])];
-        const ws2 = [['題號', '功能特徵', '正向題目', '反向題目'], ...S.genQuestions.map((q, i) => [`Q${i + 1}`, q.feature, q.positive, q.negative])];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1), '題目設計總覽');
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2), '題型');
-        XLSX.writeFile(wb, `Kano_Questions_${new Date().toISOString().split('T')[0]}.xlsx`);
-        toast('Excel 匯出成功！', 'success');
-      }
-      async function exportWord() {
-        if (!S.genQuestions.length) { toast('無題目可匯出', 'error'); return; }
-        if (!window.docx) { toast('Word 套件載入中，請稍後', 'error'); return; }
-        const { Document, Packer, Paragraph } = window.docx;
-        const children = []; let n = 1;
-        S.genQuestions.forEach(q => {
-          children.push(new Paragraph({ text: `${n}. ${q.positive} *` }));
-          ['A. 我非常喜歡', 'B. 我期望如此', 'C. 無所謂', 'D. 可以接受', 'E. 無法接受'].forEach(o => children.push(new Paragraph({ text: o })));
-          children.push(new Paragraph({ text: '' })); n++;
-          children.push(new Paragraph({ text: `${n}. ${q.negative} *` }));
-          ['A. 我非常喜歡', 'B. 我期望如此', 'C. 無所謂', 'D. 可以接受', 'E. 無法接受'].forEach(o => children.push(new Paragraph({ text: o })));
-          children.push(new Paragraph({ text: '' })); n++;
-        });
-        const blob = await Packer.toBlob(new Document({ sections: [{ properties: {}, children }] }));
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = `Kano_Survey_Forms_${new Date().toISOString().split('T')[0]}.docx`; a.click();
-        URL.revokeObjectURL(a.href); toast('Word 匯出成功！請直接上傳至 Forms', 'success');
-      }
-      function showScreenshot() {
-        document.getElementById('screenshot-tbody').innerHTML = S.genQuestions.map(q => `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:10px;font-weight:700;">${q.id}</td><td style="padding:10px;">${q.feature || ''}</td><td style="padding:10px;">${q.positive || ''}</td><td style="padding:10px;">${q.negative || ''}</td></tr>`).join('');
-        document.getElementById('screenshot-modal').style.display = 'flex';
-      }
-      function closeModal() { document.getElementById('screenshot-modal').style.display = 'none'; }
-
-      // ══════ 資料工具 ══════
-      function normalizeAnswer(raw) {
-        const s = String(raw || '').trim();
-        if (s.includes('無法') || s.includes('不喜歡') || s.includes('討厭')) return '無法接受';
-        if (s.includes('喜歡')) return '我非常喜歡';
-        if (s.includes('期望') || s.includes('理所當然') || s.includes('應該') || s.includes('當然')) return '我期望如此';
-        if (s.includes('無所謂') || s.includes('沒差') || s.includes('無感')) return '無所謂';
-        if (s.includes('接受') || s.includes('可以') || s.includes('忍受')) return '可以接受';
-        return s;
-      }
-      function getQuadrantCat(si, dsi) {
-        if (si >= 0.5 && dsi >= -0.5) return 'A';
-        if (si >= 0.5 && dsi < -0.5) return 'O';
-        if (si < 0.5 && dsi >= -0.5) return 'I';
-        return 'M';
-      }
-
-      // ══════ Excel 上傳 ══════
-      function uploadExcel(input) {
-        const file = input.files?.[0]; if (!file) return;
-        if (!window.XLSX) { toast('XLSX 元件載入中', 'error'); return; }
-        const reader = new FileReader();
-        reader.onload = e => {
-          try {
-            const wb = XLSX.read(e.target.result, { type: 'binary' });
-            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
-            if (!rows || rows.length < 2) { toast('Excel 無有效數據', 'error'); return; }
-            const headers = rows[0], dataRows = rows.slice(1), START = 6;
-            const items = []; let qIdx = 0;
-            const guide = safeGuide(S.genGuide);
-            const gl = { pos: {}, neg: {} };
-            const gc = str => { const s = String(str || '').trim(); return (s.split(' ')[0] || s).toUpperCase(); };
-            guide.positive_analysis.forEach(r => { if (r && r.response && r.category) gl.pos[normalizeAnswer(r.response)] = gc(r.category); });
-            guide.negative_analysis.forEach(r => { if (r && r.response && r.category) gl.neg[normalizeAnswer(r.response)] = gc(r.category); });
-            for (let i = START; i < headers.length; i++) {
-              const h = headers[i]; if (!h) continue;
-              const isNeg = qIdx % 2 !== 0;
-              const counts = { A: 0, O: 0, M: 0, I: 0, R: 0, Q: 0 }; const rc = {};
-              dataRows.forEach(row => {
-                const ans = normalizeAnswer((row[i] || '').toString());
-                rc[ans] = (rc[ans] || 0) + 1;
-                const cat = (isNeg ? gl.neg : gl.pos)[ans];
-                if (cat && counts[cat] !== undefined) counts[cat]++;
-              });
-              const tot = counts.A + counts.O + counts.M + counts.I + counts.R || 1;
-              const si = +((counts.A + counts.O) / tot).toFixed(3);
-              const dsi = +((counts.O + counts.M) / tot * -1).toFixed(3);
-              const linked = S.genQuestions[qIdx] || null;
-              items.push({ id: `Q${qIdx + 1}`, text: h, isPos: !isNeg, displayId: `Q${qIdx + 1}`, si, dsi, category: getQuadrantCat(si, dsi), designCategory: linked?.amior || null, actualCategory: getQuadrantCat(si, dsi), stats: counts, answerCounts: rc, execution_advice: linked?.execution_advice || null, modification_method: linked?.modification_method || null, feature: linked?.feature || null });
-              qIdx++;
+        },
+        y:{
+          type:'linear',min:0,max:1,
+          title:{display:true,text:'滿意係數 (SI)',color:'#64748b',font:{size:11}},
+          // ★ Y 軸每 0.1 一個刻度（總共 11 個點）
+          grid:{color:'rgba(226,232,240,0.6)'},
+          border:{display:true},
+          ticks:{
+            color:'#94a3b8',font:{size:10},
+            stepSize:0.1,
+            maxTicksLimit:11,
+            callback(val){
+              const v=Math.round(val*10)/10;
+              // 只顯示 0, 0.1, 0.2 ... 1.0
+              return v.toFixed(1);
             }
-            setData({ meta: { totalRespondents: dataRows.length, analysisDate: new Date().toISOString().split('T')[0] }, items });
-            toast(`解析完成！共 ${items.length} 個題目`, 'success');
-          } catch (err) { toast('解析失敗：' + err.message, 'error'); console.error(err); }
-        };
-        reader.readAsBinaryString(file);
-      }
-      function loadDemoData() { setData(DEMO_DATA); toast('範例數據載入成功！', 'success'); }
-      function setData(d) {
-        S.data = d;
-        S._currentDataVersion++; // 資料更新，讓報告下次切換時重新渲染
-        document.getElementById('stat-respondents').textContent = d.meta.totalRespondents;
-        document.getElementById('stat-questions').textContent = d.items.length;
-        generateAutoContent(d);
-        updateScatterChart();
-        renderQTable();
-        renderSurvey();
-      }
-
-      // ══════ 自動摘要 ══════
-      function generateAutoContent(d) {
-        if (!d.items.length) return;
-        const items = d.items, total = items.length;
-        const count = { A: 0, O: 0, M: 0, I: 0, R: 0, Q: 0 };
-        items.forEach(i => { if (count[i.category] !== undefined) count[i.category]++; });
-        const pct = n => total === 0 ? '0%' : `${Math.round(n / total * 100)}%`;
-        const maxCat = Object.keys(count).reduce((a, b) => count[a] > count[b] ? a : b);
-        const mList = items.filter(i => i.category === 'M').map(i => i.id).join('、') || '無';
-        const oList = items.filter(i => i.category === 'O').map(i => i.id).join('、') || '無';
-        const aList = items.filter(i => i.category === 'A').map(i => i.id).join('、') || '無';
-        S.summaryHighlights = [
-          `1）分佈總覽：\n  本次分析共 ${total} 題，以「${(CAT_NAMES[maxCat] || maxCat).split(' ')[0]}」佔比最高 (${count[maxCat]}題, ${pct(count[maxCat])})。`,
-          `2）關鍵屬性：\n  ・基本(M)：${mList} (避免不滿的底線)\n  ・期望(O)：${oList} (提升滿意度的主力)\n  ・魅力(A)：${aList} (差異化亮點)`,
-          count.M > 0 ? '3）優先行動：\n  基本需求(M)存在缺口，需最優先修復以止血，接著再優化期望需求(O)。' : count.O > 0 ? '3）優先行動：\n  基礎功能穩固，建議集中資源在期望需求(O)的體驗優化。' : '3）優先行動：\n  目前分佈較為平均，建議依照產品策略決定發展方向。'
-        ].join('\n\n');
-        S.analysisReason = count.M > total * 0.3 ? '1. 基礎建設期：\n超過 30% 為基本需求(M)，產品仍處於「補足基礎」階段，玩家對於基礎功能的完整性非常在意。\n\n' : count.A > total * 0.3 ? '1. 創新紅利期：\n大量魅力需求(A)，顯示本次測試的功能帶給玩家許多驚喜，具有很好的行銷潛力。\n\n' : '1. 體驗優化期：\n分佈均衡或以期望需求(O)為主，戰場在於「做得比競品更好」，細節打磨是關鍵。\n\n';
-        S.improvementItems = [...items].sort((a, b) => {
-          const diff = (CAT_PRIORITY[a.category] || 9) - (CAT_PRIORITY[b.category] || 9);
-          return diff !== 0 ? diff : Math.abs(b.dsi) - Math.abs(a.dsi);
-        });
-      }
-
-      // ══════════════════════════════════════════
-      // Kano 散佈圖
-      // ★ 修正：X 軸 0→-1，刻度每 0.1，中線，象限文字，點位合併+Force Simulation
-      // ══════════════════════════════════════════
-      const CURVE = {
-        A: [{ x: 0, y: 0.5 }, { x: -0.1, y: 0.505 }, { x: -0.2, y: 0.52 }, { x: -0.3, y: 0.545 }, { x: -0.4, y: 0.58 }, { x: -0.5, y: 0.625 }, { x: -0.6, y: 0.68 }, { x: -0.7, y: 0.745 }, { x: -0.8, y: 0.82 }, { x: -0.9, y: 0.905 }, { x: -1, y: 1 }],
-        O: [{ x: 0, y: 0 }, { x: -0.1, y: 0.1 }, { x: -0.2, y: 0.2 }, { x: -0.3, y: 0.3 }, { x: -0.4, y: 0.4 }, { x: -0.5, y: 0.5 }, { x: -0.6, y: 0.6 }, { x: -0.7, y: 0.7 }, { x: -0.8, y: 0.8 }, { x: -0.9, y: 0.9 }, { x: -1, y: 1 }],
-        M: [{ x: 0, y: 0 }, { x: -0.1, y: 0.095 }, { x: -0.2, y: 0.18 }, { x: -0.3, y: 0.255 }, { x: -0.4, y: 0.32 }, { x: -0.5, y: 0.375 }, { x: -0.6, y: 0.42 }, { x: -0.7, y: 0.455 }, { x: -0.8, y: 0.48 }, { x: -0.9, y: 0.495 }, { x: -1, y: 0.5 }],
-        I: [{ x: 0, y: 0.5 }, { x: -0.1, y: 0.5 }, { x: -0.2, y: 0.5 }, { x: -0.3, y: 0.5 }, { x: -0.4, y: 0.5 }, { x: -0.5, y: 0.5 }, { x: -0.6, y: 0.5 }, { x: -0.7, y: 0.5 }, { x: -0.8, y: 0.5 }, { x: -0.9, y: 0.5 }, { x: -1, y: 0.5 }],
-        R: [{ x: 0, y: 1 }, { x: -0.1, y: 0.9 }, { x: -0.2, y: 0.8 }, { x: -0.3, y: 0.7 }, { x: -0.4, y: 0.6 }, { x: -0.5, y: 0.5 }, { x: -0.6, y: 0.4 }, { x: -0.7, y: 0.3 }, { x: -0.8, y: 0.2 }, { x: -0.9, y: 0.1 }, { x: -1, y: 0 }]
-      };
-
-      // 象限+中線插件
-      const quadrantPlugin = {
-        id: 'kanoQuadrant',
-        beforeDatasetsDraw(chart) {
-          const { ctx, chartArea, scales } = chart; if (!chartArea) return;
-          const mx = scales.x.getPixelForValue(-0.5);
-          const my = scales.y.getPixelForValue(0.5);
-          const { left, right, top, bottom } = chartArea;
-          ctx.save();
-          // 中間虛線
-          ctx.setLineDash([6, 4]); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(148,163,184,0.65)';
-          ctx.beginPath(); ctx.moveTo(mx, top); ctx.lineTo(mx, bottom); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(left, my); ctx.lineTo(right, my); ctx.stroke();
-          ctx.setLineDash([]);
-          // 象限大字
-          ctx.font = 'bold 16px "Noto Sans TC",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillStyle = 'rgba(59,130,246,0.13)'; ctx.fillText('魅力屬性 (Attractive)', (left + mx) / 2, (top + my) / 2);
-          ctx.fillStyle = 'rgba(249,115,22,0.13)'; ctx.fillText('期望屬性 (One-dimensional)', (mx + right) / 2, (top + my) / 2);
-          ctx.fillStyle = 'rgba(100,116,139,0.13)'; ctx.fillText('無差異屬性 (Indifferent)', (left + mx) / 2, (my + bottom) / 2);
-          ctx.fillStyle = 'rgba(239,68,68,0.13)'; ctx.fillText('基本屬性 (Must-be)', (mx + right) / 2, (my + bottom) / 2);
-          ctx.restore();
+          }
         }
-      };
-
-      // 標籤插件（含白色描邊）
-      const labelPlugin = {
-        id: 'kanoLabels',
-        afterDatasetsDraw(chart) {
-          const ds = chart.data.datasets.find(d => d.id === 'scatter');
-          if (!ds || !ds.data.length) return;
-          const { ctx, scales } = chart;
-          ctx.save();
-          ds.data.forEach(pt => {
-            if (!pt.label) return;
-            const x = scales.x.getPixelForValue(pt.x);
-            const y = scales.y.getPixelForValue(pt.y);
-            ctx.font = 'bold 11px "IBM Plex Mono",monospace';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-            ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 3;
-            ctx.strokeText(pt.label, x, y - 9);
-            ctx.fillStyle = pt.labelColor || '#1e293b';
-            ctx.fillText(pt.label, x, y - 9);
-          });
-          ctx.restore();
-        }
-      };
-
-      function buildChartConfig(isReport = false) {
-        return {
-          data: {
-            datasets: [
-              { type: 'line', label: '魅力 A', data: CURVE.A, borderColor: 'rgba(147,197,253,0.85)', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false, order: 10 },
-              { type: 'line', label: '期望 O', data: CURVE.O, borderColor: 'rgba(253,186,116,0.85)', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false, order: 10 },
-              { type: 'line', label: '基本 M', data: CURVE.M, borderColor: 'rgba(252,165,165,0.85)', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false, order: 10 },
-              { type: 'line', label: '無差異 I', data: CURVE.I, borderColor: 'rgba(148,163,184,0.7)', borderWidth: 1.5, pointRadius: 0, fill: false, order: 10 },
-              { type: 'line', label: '反向 R', data: CURVE.R, borderColor: 'rgba(134,239,172,0.85)', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0, fill: false, order: 10 },
-              // 散佈圖（題目點）— 縮小圓點避免重疊
-              { type: 'scatter', label: '題目', id: 'scatter', data: [], pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 1.5, pointBorderColor: '#fff', backgroundColor: [], borderColor: [], order: 1 }
-            ]
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            scales: {
-              x: {
-                type: 'linear',
-                // 左側 0，右側 -1（reverse=true）
-                min: -1, max: 0,
-                reverse: true,
-                title: { display: true, text: '不滿意係數 (DSI)', color: '#64748b', font: { size: 11 } },
-                // ★ X 軸顯示淡色垂直格線（對應原始 CartesianGrid）
-                grid: { color: 'rgba(226,232,240,0.6)' },
-                border: { display: true },
-                ticks: {
-                  color: '#94a3b8', font: { size: 10 },
-                  // ★ 每 0.1 一個刻度，總共 11 個點（0, -0.1, -0.2 ... -1.0）
-                  stepSize: 0.1,
-                  maxTicksLimit: 11,
-                  callback(val) {
-                    // reverse=true 時 val 為原始負數值
-                    const v = Math.round(val * 10) / 10;
-                    if (v === 0) return '0';
-                    if (v === -0.1) return '-0.1';
-                    if (v === -0.2) return '-0.2';
-                    if (v === -0.3) return '-0.3';
-                    if (v === -0.4) return '-0.4';
-                    if (v === -0.5) return '-0.5';
-                    if (v === -0.6) return '-0.6';
-                    if (v === -0.7) return '-0.7';
-                    if (v === -0.8) return '-0.8';
-                    if (v === -0.9) return '-0.9';
-                    if (v === -1) return '-1.0';
-                    return '';
-                  }
-                }
-              },
-              y: {
-                type: 'linear', min: 0, max: 1,
-                title: { display: true, text: '滿意係數 (SI)', color: '#64748b', font: { size: 11 } },
-                // ★ Y 軸每 0.1 一個刻度（總共 11 個點）
-                grid: { color: 'rgba(226,232,240,0.6)' },
-                border: { display: true },
-                ticks: {
-                  color: '#94a3b8', font: { size: 10 },
-                  stepSize: 0.1,
-                  maxTicksLimit: 11,
-                  callback(val) {
-                    const v = Math.round(val * 10) / 10;
-                    // 只顯示 0, 0.1, 0.2 ... 1.0
-                    return v.toFixed(1);
-                  }
-                }
-              }
-            },
-            plugins: {
-              legend: { display: false },
-              // ★ 關閉所有動畫，圖表直接顯示，不從下往上繪製
-              animation: false,
-              tooltip: {
-                backgroundColor: '#fff', borderColor: '#e2e8f0', borderWidth: 1,
-                titleColor: '#0f172a', bodyColor: '#475569',
-                callbacks: {
-                  label: ctx => {
-                    const d = ctx.raw;
-                    if (!d || !d.label) return null;
-                    return `${d.label} [${d.cat}]  SI:${(d.origY ?? d.y)?.toFixed(3)}  DSI:${(d.origX ?? d.x)?.toFixed(3)}`;
-                  }
-                }
-              }
+      },
+      plugins:{
+        legend:{display:false},
+        // ★ 關閉所有動畫，圖表直接顯示，不從下往上繪製
+        animation:false,
+        tooltip:{
+          backgroundColor:'#fff',borderColor:'#e2e8f0',borderWidth:1,
+          titleColor:'#0f172a',bodyColor:'#475569',
+          callbacks:{
+            label:ctx=>{
+              const d=ctx.raw;
+              if(!d||!d.label) return null;
+              return`${d.label} [${d.cat}]  SI:${(d.origY??d.y)?.toFixed(3)}  DSI:${(d.origX??d.x)?.toFixed(3)}`;
             }
-          },
-          plugins: [quadrantPlugin, labelPlugin]
-        };
-      }
-
-      function initScatterChart() {
-        const ctx = document.getElementById('scatter-chart').getContext('2d');
-        S.scatterChart = new Chart(ctx, buildChartConfig());
-      }
-
-      // Force Simulation：相同座標合併標籤，不同近點強力分開
-      function buildScatterData(items) {
-        if (!items || !items.length) return [];
-
-        // Step 1：按原始座標分組合併（四捨五入到 0.01 精度避免浮點問題）
-        const groupMap = new Map();
-        items.forEach(item => {
-          const key = `${Math.round(item.dsi * 100)}_${Math.round(item.si * 100)}`;
-          if (!groupMap.has(key)) groupMap.set(key, []);
-          groupMap.get(key).push(item);
-        });
-
-        // Step 2：每組建立節點
-        const nodes = Array.from(groupMap.values()).map(grp => {
-          const sortedGrp = [...grp].sort((a, b) => (parseInt(a.displayId.replace(/\D/g, '')) || 0) - (parseInt(b.displayId.replace(/\D/g, '')) || 0));
-          const label = sortedGrp.map(i => i.displayId).join('、');
-          const rep = sortedGrp[0];
-          const catVotes = {}; sortedGrp.forEach(i => { catVotes[i.category] = (catVotes[i.category] || 0) + 1; });
-          const winCat = Object.keys(catVotes).reduce((a, b) => catVotes[a] > catVotes[b] ? a : b);
-          return { origX: rep.dsi, origY: rep.si, lx: rep.dsi, ly: rep.si, vx: 0, vy: 0, label, category: winCat };
-        });
-
-        if (nodes.length <= 1) return nodes.map(n => ({
-          x: n.lx, y: n.ly, origX: n.origX, origY: n.origY, label: n.label, cat: n.category,
-          labelColor: CAT_COLORS[n.category] || '#1e293b'
-        }));
-
-        // Step 3：Force Simulation（碰撞半徑 0.14，強力排斥，200 次迭代）
-        const ITER = 200, REPULSE = 0.007, ANCHOR = 0.04, COLLIDE = 0.14;
-        for (let iter = 0; iter < ITER; iter++) {
-          nodes.forEach(n => {
-            // 錨定力（回拉到原點）
-            let fx = (n.origX - n.lx) * ANCHOR;
-            let fy = (n.origY - n.ly) * ANCHOR;
-            // 排斥力
-            nodes.forEach(o => {
-              if (n === o) return;
-              const dx = n.lx - o.lx, dy = n.ly - o.ly, d2 = dx * dx + dy * dy;
-              if (d2 < COLLIDE * COLLIDE && d2 > 0.000001) {
-                const d = Math.sqrt(d2);
-                const f = (COLLIDE - d) / d * REPULSE;
-                fx += dx * f; fy += dy * f;
-              }
-            });
-            // 邊界軟反彈
-            const P = 0.04;
-            if (n.lx > -P) fx -= 0.025;
-            if (n.lx < -1 + P) fx += 0.025;
-            if (n.ly < P) fy += 0.025;
-            if (n.ly > 1 - P) fy -= 0.025;
-            n.vx = (n.vx + fx) * 0.78;
-            n.vy = (n.vy + fy) * 0.78;
-            n.lx += n.vx;
-            n.ly += n.vy;
-          });
+          }
         }
-
-        return nodes.map(n => ({
-          x: Math.max(-1, Math.min(0, n.lx)),
-          y: Math.max(0, Math.min(1, n.ly)),
-          origX: n.origX, origY: n.origY,
-          label: n.label, cat: n.category,
-          labelColor: CAT_COLORS[n.category] || '#1e293b'
-        }));
       }
+    },
+    plugins:[quadrantPlugin,labelPlugin]
+  };
+}
 
-      function updateScatterChart() {
-        if (!S.scatterChart) return;
-        const pts = buildScatterData(S.data.items);
-        const scatterDs = S.scatterChart.data.datasets.find(d => d.id === 'scatter');
-        scatterDs.data = pts;
-        scatterDs.backgroundColor = pts.map(p => CAT_COLORS[p.cat] || '#64748b');
-        scatterDs.borderColor = pts.map(() => '#fff');
-        S.scatterChart.update();
-      }
+function initScatterChart(){
+  const ctx=document.getElementById('scatter-chart').getContext('2d');
+  S.scatterChart=new Chart(ctx,buildChartConfig());
+}
 
-      // ══════ 題目統計表（看板用） ══════
-      function renderQTable() {
-        const mode = document.getElementById('sort-mode').value;
-        let items = [...S.data.items];
-        if (mode === 'id') items.sort((a, b) => (parseInt(a.id.replace(/\D/g, '')) || 0) - (parseInt(b.id.replace(/\D/g, '')) || 0));
-        else items.sort((a, b) => (CAT_PRIORITY[a.category] || 9) - (CAT_PRIORITY[b.category] || 9));
-        const grid = document.getElementById('q-stat-grid');
-        if (!items.length) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:24px;"><div class="empty-icon" style="font-size:28px;">📊</div><p>尚無數據</p></div>'; return; }
-        grid.innerHTML = items.map(item => `
+// Force Simulation：相同座標合併標籤，不同近點強力分開
+function buildScatterData(items){
+  if(!items||!items.length) return[];
+
+  // Step 1：按原始座標分組合併（四捨五入到 0.01 精度避免浮點問題）
+  const groupMap=new Map();
+  items.forEach(item=>{
+    const key=`${Math.round(item.dsi*100)}_${Math.round(item.si*100)}`;
+    if(!groupMap.has(key)) groupMap.set(key,[]);
+    groupMap.get(key).push(item);
+  });
+
+  // Step 2：每組建立節點
+  const nodes=Array.from(groupMap.values()).map(grp=>{
+    const sortedGrp=[...grp].sort((a,b)=>(parseInt(a.displayId.replace(/\D/g,''))||0)-(parseInt(b.displayId.replace(/\D/g,''))||0));
+    const label=sortedGrp.map(i=>i.displayId).join('、');
+    const rep=sortedGrp[0];
+    const catVotes={};sortedGrp.forEach(i=>{catVotes[i.category]=(catVotes[i.category]||0)+1;});
+    const winCat=Object.keys(catVotes).reduce((a,b)=>catVotes[a]>catVotes[b]?a:b);
+    return{origX:rep.dsi,origY:rep.si,lx:rep.dsi,ly:rep.si,vx:0,vy:0,label,category:winCat};
+  });
+
+  if(nodes.length<=1) return nodes.map(n=>({
+    x:n.lx,y:n.ly,origX:n.origX,origY:n.origY,label:n.label,cat:n.category,
+    labelColor:CAT_COLORS[n.category]||'#1e293b'
+  }));
+
+  // Step 3：Force Simulation（碰撞半徑 0.14，強力排斥，200 次迭代）
+  const ITER=200, REPULSE=0.007, ANCHOR=0.04, COLLIDE=0.14;
+  for(let iter=0;iter<ITER;iter++){
+    nodes.forEach(n=>{
+      // 錨定力（回拉到原點）
+      let fx=(n.origX-n.lx)*ANCHOR;
+      let fy=(n.origY-n.ly)*ANCHOR;
+      // 排斥力
+      nodes.forEach(o=>{
+        if(n===o) return;
+        const dx=n.lx-o.lx, dy=n.ly-o.ly, d2=dx*dx+dy*dy;
+        if(d2<COLLIDE*COLLIDE&&d2>0.000001){
+          const d=Math.sqrt(d2);
+          const f=(COLLIDE-d)/d*REPULSE;
+          fx+=dx*f; fy+=dy*f;
+        }
+      });
+      // 邊界軟反彈
+      const P=0.04;
+      if(n.lx>-P)   fx-=0.025;
+      if(n.lx<-1+P) fx+=0.025;
+      if(n.ly<P)    fy+=0.025;
+      if(n.ly>1-P)  fy-=0.025;
+      n.vx=(n.vx+fx)*0.78;
+      n.vy=(n.vy+fy)*0.78;
+      n.lx+=n.vx;
+      n.ly+=n.vy;
+    });
+  }
+
+  return nodes.map(n=>({
+    x:Math.max(-1,Math.min(0,n.lx)),
+    y:Math.max(0,Math.min(1,n.ly)),
+    origX:n.origX, origY:n.origY,
+    label:n.label, cat:n.category,
+    labelColor:CAT_COLORS[n.category]||'#1e293b'
+  }));
+}
+
+function updateScatterChart(){
+  if(!S.scatterChart) return;
+  const pts=buildScatterData(S.data.items);
+  const scatterDs=S.scatterChart.data.datasets.find(d=>d.id==='scatter');
+  scatterDs.data=pts;
+  scatterDs.backgroundColor=pts.map(p=>CAT_COLORS[p.cat]||'#64748b');
+  scatterDs.borderColor=pts.map(()=>'#fff');
+  S.scatterChart.update();
+}
+
+// ══════ 題目統計表（看板用） ══════
+function renderQTable(){
+  const mode=document.getElementById('sort-mode').value;
+  let items=[...S.data.items];
+  if(mode==='id') items.sort((a,b)=>(parseInt(a.id.replace(/\D/g,''))||0)-(parseInt(b.id.replace(/\D/g,''))||0));
+  else items.sort((a,b)=>(CAT_PRIORITY[a.category]||9)-(CAT_PRIORITY[b.category]||9));
+  const grid=document.getElementById('q-stat-grid');
+  if(!items.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1;padding:24px;"><div class="empty-icon" style="font-size:28px;">📊</div><p>尚無數據</p></div>';return;}
+  grid.innerHTML=items.map(item=>`
     <div class="q-tbl-item">
       <div class="q-tbl-id">${item.displayId}</div>
       <div>
-        <div style="margin-bottom:4px;"><span class="badge badge-${(item.category || 'i').toLowerCase()}">${SHORT_NAMES[item.category] || item.category || '未知'}</span></div>
+        <div style="margin-bottom:4px;"><span class="badge badge-${(item.category||'i').toLowerCase()}">${SHORT_NAMES[item.category]||item.category||'未知'}</span></div>
         <div class="q-tbl-name">${item.text}</div>
       </div>
     </div>`).join('');
-      }
+}
 
-      // ══════ 問卷填寫預覽 ══════
-      function renderSurvey() {
-        const { items } = S.data;
-        const wrap = document.getElementById('survey-content');
-        if (!items.length) { wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>請先在圖表看板上傳 Excel 數據或載入範例數據</p></div>'; return; }
-        const guide = safeGuide(S.genGuide);
-        const counts = { A: 0, O: 0, M: 0, I: 0, R: 0 };
-        items.forEach(i => { if (counts[i.category] !== undefined) counts[i.category]++; });
-        const amiorBar = Object.entries(counts).filter(([, v]) => v > 0).map(([k, v]) =>
-          `<span style="display:flex;align-items:center;gap:5px;"><span class="amior-dot" style="background:${CAT_COLORS[k]}"></span><span style="font-size:12px;font-weight:700;">${SHORT_NAMES[k]}: ${v}題</span></span>`).join('');
-        const sorted = [...items].sort((a, b) => (parseInt(a.id.replace(/\D/g, '')) || 0) - (parseInt(b.id.replace(/\D/g, '')) || 0));
-        wrap.innerHTML = `
+// ══════ 問卷填寫預覽 ══════
+function renderSurvey(){
+  const{items}=S.data;
+  const wrap=document.getElementById('survey-content');
+  if(!items.length){wrap.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>請先在圖表看板上傳 Excel 數據或載入範例數據</p></div>';return;}
+  const guide=safeGuide(S.genGuide);
+  const counts={A:0,O:0,M:0,I:0,R:0};
+  items.forEach(i=>{if(counts[i.category]!==undefined) counts[i.category]++;});
+  const amiorBar=Object.entries(counts).filter(([,v])=>v>0).map(([k,v])=>
+    `<span style="display:flex;align-items:center;gap:5px;"><span class="amior-dot" style="background:${CAT_COLORS[k]}"></span><span style="font-size:12px;font-weight:700;">${SHORT_NAMES[k]}: ${v}題</span></span>`).join('');
+  const sorted=[...items].sort((a,b)=>(parseInt(a.id.replace(/\D/g,''))||0)-(parseInt(b.id.replace(/\D/g,''))||0));
+  wrap.innerHTML=`
     <div class="card" style="margin-bottom:16px;">
       <h1 style="font-size:22px;font-weight:900;margin-bottom:6px;">問卷填寫結果分析</h1>
       <p style="color:var(--text2);font-size:13px;">從 Excel 解析出的所有題目（獨立計算 AMIOR）及其統計結果。</p>
       <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;">
-        ${['M', 'O', 'A', 'I', 'R'].map(k => `<span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;"><span style="width:8px;height:8px;border-radius:50%;background:${CAT_COLORS[k]};display:inline-block;"></span>${SHORT_NAMES[k]}</span>`).join('')}
+        ${['M','O','A','I','R'].map(k=>`<span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;"><span style="width:8px;height:8px;border-radius:50%;background:${CAT_COLORS[k]};display:inline-block;"></span>${SHORT_NAMES[k]}</span>`).join('')}
       </div>
     </div>
     <div class="amior-bar" style="margin-bottom:14px;"><span style="font-size:12px;font-weight:700;color:var(--text2);">整體分佈：</span>${amiorBar}</div>
-    ${sorted.map(item => `
-      <div class="survey-item ${item.isPos ? 'pos' : 'neg'}">
+    ${sorted.map(item=>`
+      <div class="survey-item ${item.isPos?'pos':'neg'}">
         <div class="s-head">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span style="background:var(--text);color:#fff;padding:3px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;">${item.displayId}</span>
-            <span class="badge ${item.isPos ? 'badge-pos' : 'badge-neg'}">${item.isPos ? '正向題' : '反向題'}</span>
-            ${item.designCategory && item.designCategory !== item.actualCategory ? `<span style="font-size:11px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:4px;">AI預測: <strong>${item.designCategory}</strong> vs 實測: ${item.actualCategory}</span>` : ''}
+            <span class="badge ${item.isPos?'badge-pos':'badge-neg'}">${item.isPos?'正向題':'反向題'}</span>
+            ${item.designCategory&&item.designCategory!==item.actualCategory?`<span style="font-size:11px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:4px;">AI預測: <strong>${item.designCategory}</strong> vs 實測: ${item.actualCategory}</span>`:''}
           </div>
           <span class="si-badge"><span style="color:var(--cat-a);">SI: ${item.si?.toFixed(3)}</span><span style="color:var(--cat-o);margin-left:8px;">DSI: ${item.dsi?.toFixed(3)}</span></span>
         </div>
         <div class="s-title">${item.text}</div>
-        ${item.stats ? `<div class="dist-row">${['M', 'O', 'A', 'I', 'R'].map(k => `<div class="dist-item"><span class="amior-dot" style="background:${CAT_COLORS[k]}"></span><span>${k}: ${item.stats[k] || 0}</span></div>`).join('')}</div>` : ''}
+        ${item.stats?`<div class="dist-row">${['M','O','A','I','R'].map(k=>`<div class="dist-item"><span class="amior-dot" style="background:${CAT_COLORS[k]}"></span><span>${k}: ${item.stats[k]||0}</span></div>`).join('')}</div>`:''}
       </div>`).join('')}
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
       <div class="card-title">💡 Kano 模型判讀指南</div>
       <div class="guide-grid">
         <div class="guide-col">
           <h4>正向題反應分析</h4>
-          ${guide.positive_analysis.map(r => `<div class="guide-row"><span class="resp">${String(r.response || '')}</span> <span class="arrow">→</span> <span class="cat">（${safeCatCode(r.category)}）</span><span class="guide-reason">${String(r.reason || '').replace(/^理由[：:]\s*/, '')}</span></div>`).join('')}
+          ${guide.positive_analysis.map(r=>`<div class="guide-row"><span class="resp">${String(r.response||'')}</span> <span class="arrow">→</span> <span class="cat">（${safeCatCode(r.category)}）</span><span class="guide-reason">${String(r.reason||'').replace(/^理由[：:]\s*/,'')}</span></div>`).join('')}
         </div>
         <div class="guide-col">
           <h4>反向題反應分析</h4>
-          ${guide.negative_analysis.map(r => `<div class="guide-row"><span class="resp">${String(r.response || '')}</span> <span class="arrow">→</span> <span class="cat">（${safeCatCode(r.category)}）</span><span class="guide-reason">${String(r.reason || '').replace(/^理由[：:]\s*/, '')}</span></div>`).join('')}
+          ${guide.negative_analysis.map(r=>`<div class="guide-row"><span class="resp">${String(r.response||'')}</span> <span class="arrow">→</span> <span class="cat">（${safeCatCode(r.category)}）</span><span class="guide-reason">${String(r.reason||'').replace(/^理由[：:]\s*/,'')}</span></div>`).join('')}
         </div>
       </div>
     </div>`;
-      }
+}
 
-      // ══════════════════════════════════════════
-      // 報告預覽
-      // ★ 修正：圖表下方補充題目清單（對照原始程式碼 QuestionStatsTable）
-      // ══════════════════════════════════════════
-      let reportChartInstance = null;
+// ══════════════════════════════════════════
+// 報告預覽
+// ★ 修正：圖表下方補充題目清單（對照原始程式碼 QuestionStatsTable）
+// ══════════════════════════════════════════
+let reportChartInstance=null;
 
-      // 報告題目清單（互動式，可依題號或屬性排序）
-      // 在 report-content 裡直接渲染，用 JS 動態排序
-      let reportSortMode = 'id'; // 'id' | 'cat'
+// 報告題目清單（互動式，可依題號或屬性排序）
+// 在 report-content 裡直接渲染，用 JS 動態排序
+let reportSortMode='id'; // 'id' | 'cat'
 
-      function renderReportQTable() {
-        const container = document.getElementById('report-q-table');
-        if (!container) return;
-        let items = [...S.data.items];
-        if (reportSortMode === 'id') {
-          items.sort((a, b) => (parseInt(a.id.replace(/\D/g, '')) || 0) - (parseInt(b.id.replace(/\D/g, '')) || 0));
-        } else {
-          items.sort((a, b) => {
-            const d = (CAT_PRIORITY[a.category] || 9) - (CAT_PRIORITY[b.category] || 9);
-            return d !== 0 ? d : (parseInt(a.id.replace(/\D/g, '')) || 0) - (parseInt(b.id.replace(/\D/g, '')) || 0);
-          });
-        }
-        const half = Math.ceil(items.length / 2);
-        const renderItem = item => `
+function renderReportQTable(){
+  const container=document.getElementById('report-q-table');
+  if(!container) return;
+  let items=[...S.data.items];
+  if(reportSortMode==='id'){
+    items.sort((a,b)=>(parseInt(a.id.replace(/\D/g,''))||0)-(parseInt(b.id.replace(/\D/g,''))||0));
+  }else{
+    items.sort((a,b)=>{
+      const d=(CAT_PRIORITY[a.category]||9)-(CAT_PRIORITY[b.category]||9);
+      return d!==0?d:(parseInt(a.id.replace(/\D/g,''))||0)-(parseInt(b.id.replace(/\D/g,''))||0);
+    });
+  }
+  const half=Math.ceil(items.length/2);
+  const renderItem=item=>`
     <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:#f8fafc;border:1px solid #f1f5f9;border-radius:8px;margin-bottom:6px;">
       <span style="background:#e2e8f0;color:#334155;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;flex-shrink:0;min-width:36px;text-align:center;">${item.displayId}</span>
       <div style="flex:1;min-width:0;">
-        <div style="margin-bottom:3px;"><span style="background:${CAT_COLORS[item.category] || '#64748b'};color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;">${SHORT_NAMES[item.category] || item.category}</span></div>
+        <div style="margin-bottom:3px;"><span style="background:${CAT_COLORS[item.category]||'#64748b'};color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;">${SHORT_NAMES[item.category]||item.category}</span></div>
         <p style="font-size:13px;color:#334155;font-weight:500;margin:0;word-break:break-word;">${item.text}</p>
       </div>
     </div>`;
-        container.innerHTML = `
+  container.innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-      <div>${items.slice(0, half).map(renderItem).join('')}</div>
+      <div>${items.slice(0,half).map(renderItem).join('')}</div>
       <div>${items.slice(half).map(renderItem).join('')}</div>
     </div>`;
-      }
+}
 
-      function setReportSort(mode) {
-        reportSortMode = mode;
-        // 更新按鈕樣式
-        ['sort-id-btn', 'sort-cat-btn'].forEach(id => {
-          const el = document.getElementById(id);
-          if (!el) return;
-          const isActive = (id === 'sort-id-btn' && mode === 'id') || (id === 'sort-cat-btn' && mode === 'cat');
-          el.style.background = isActive ? '#4f46e5' : '#f1f5f9';
-          el.style.color = isActive ? '#fff' : '#475569';
-          el.style.borderColor = isActive ? '#4f46e5' : '#cbd5e1';
-        });
-        renderReportQTable();
-      }
+function setReportSort(mode){
+  reportSortMode=mode;
+  // 更新按鈕樣式
+  ['sort-id-btn','sort-cat-btn'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    const isActive=(id==='sort-id-btn'&&mode==='id')||(id==='sort-cat-btn'&&mode==='cat');
+    el.style.background=isActive?'#4f46e5':'#f1f5f9';
+    el.style.color=isActive?'#fff':'#475569';
+    el.style.borderColor=isActive?'#4f46e5':'#cbd5e1';
+  });
+  renderReportQTable();
+}
 
-      function renderReport() {
-        const wrap = document.getElementById('report-content');
-        if (!S.data.items.length) {
-          wrap.innerHTML = '<div class="empty-state" style="color:#94a3b8;"><div class="empty-icon">📑</div><p>請先在圖表看板載入數據後，報告將自動生成</p></div>';
-          if (reportChartInstance) { reportChartInstance.destroy(); reportChartInstance = null; }
-          return;
-        }
+function renderReport(){
+  const wrap=document.getElementById('report-content');
+  if(!S.data.items.length){
+    wrap.innerHTML='<div class="empty-state" style="color:#94a3b8;"><div class="empty-icon">📑</div><p>請先在圖表看板載入數據後，報告將自動生成</p></div>';
+    if(reportChartInstance){reportChartInstance.destroy();reportChartInstance=null;}
+    return;
+  }
 
-        // ★ 每次都從報告設定欄位讀取最新值
-        const title = document.getElementById('report-title').value || 'Kano 模型分析報告';
-        const proj = document.getElementById('project-name').value || '（未填寫）';
-        const auth = document.getElementById('author').value || '（未填寫）';
-        const dt = document.getElementById('report-date').value || '—';
+  // ★ 每次都從報告設定欄位讀取最新值
+  const title=document.getElementById('report-title').value||'Kano 模型分析報告';
+  const proj=document.getElementById('project-name').value||'（未填寫）';
+  const auth=document.getElementById('author').value||'（未填寫）';
+  const dt=document.getElementById('report-date').value||'—';
 
-        const stageConf = {
-          1: { title: '搞定基礎體驗', sub: '針對基本品質 (M)', border: '#fecaca', bg: '#fef2f2', badgeBg: '#fecaca', badgeC: '#991b1b', label: '第一階段：優先止血', cats: ['M'] },
-          2: { title: '創造亮點與爽感', sub: '針對期望/魅力 (O & A)', border: '#fde68a', bg: '#fffbeb', badgeBg: '#fde68a', badgeC: '#92400e', label: '第二階段：體驗升級', cats: ['O', 'A'] },
-          3: { title: '避免無效開發', sub: '針對無差異 (I)', border: '#a7f3d0', bg: '#ecfdf5', badgeBg: '#a7f3d0', badgeC: '#065f46', label: '第三階段：資源節流', cats: ['I', 'R', 'Q'] }
-        };
-        const stages = [1, 2, 3].filter(s => S.improvementItems.some(i => stageConf[s].cats.includes(i.category)));
-        const stagesHTML = stages.map(s => {
-          const c = stageConf[s]; const its = S.improvementItems.filter(i => c.cats.includes(i.category));
-          return `<div class="r-stage" style="border:2px solid ${c.border};">
+  const stageConf={
+    1:{title:'搞定基礎體驗',sub:'針對基本品質 (M)',border:'#fecaca',bg:'#fef2f2',badgeBg:'#fecaca',badgeC:'#991b1b',label:'第一階段：優先止血',cats:['M']},
+    2:{title:'創造亮點與爽感',sub:'針對期望/魅力 (O & A)',border:'#fde68a',bg:'#fffbeb',badgeBg:'#fde68a',badgeC:'#92400e',label:'第二階段：體驗升級',cats:['O','A']},
+    3:{title:'避免無效開發',sub:'針對無差異 (I)',border:'#a7f3d0',bg:'#ecfdf5',badgeBg:'#a7f3d0',badgeC:'#065f46',label:'第三階段：資源節流',cats:['I','R','Q']}
+  };
+  const stages=[1,2,3].filter(s=>S.improvementItems.some(i=>stageConf[s].cats.includes(i.category)));
+  const stagesHTML=stages.map(s=>{
+    const c=stageConf[s];const its=S.improvementItems.filter(i=>c.cats.includes(i.category));
+    return`<div class="r-stage" style="border:2px solid ${c.border};">
       <div class="r-stage-head" style="background:${c.bg};border-bottom:2px solid ${c.border};">
         <div class="r-stage-badge" style="background:${c.badgeBg};color:${c.badgeC};">${c.label}</div>
         <div style="font-size:18px;font-weight:700;color:#1e293b;margin:4px 0;">${c.title}</div>
         <div style="font-size:13px;color:#64748b;">${c.sub}</div>
       </div>
       <div class="r-stage-body">
-        ${its.map(item => `<div class="r-item">
+        ${its.map(item=>`<div class="r-item">
           <span style="background:#1e293b;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;">${item.id}</span>
-          <span style="background:${CAT_COLORS[item.category] || '#64748b'};color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;">${SHORT_NAMES[item.category] || item.category}</span>
+          <span style="background:${CAT_COLORS[item.category]||'#64748b'};color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;">${SHORT_NAMES[item.category]||item.category}</span>
           <span style="font-size:13px;font-weight:600;color:#1e293b;">${item.text}</span>
         </div>`).join('')}
       </div>
     </div>`;
-        }).join('');
+  }).join('');
 
-        // ★ 判斷是否需要重建整個 DOM（首次渲染 or 數據版本變更）
-        const needFullRebuild = S._reportDataVersion !== S._currentDataVersion ||
-          !wrap.querySelector('#report-chart');
+  // ★ 判斷是否需要重建整個 DOM（首次渲染 or 數據版本變更）
+  const needFullRebuild = S._reportDataVersion !== S._currentDataVersion ||
+                          !wrap.querySelector('#report-chart');
 
-        if (needFullRebuild) {
-          // 銷毀舊圖表
-          if (reportChartInstance) { reportChartInstance.destroy(); reportChartInstance = null; }
+  if(needFullRebuild){
+    // 銷毀舊圖表
+    if(reportChartInstance){reportChartInstance.destroy();reportChartInstance=null;}
 
-          wrap.innerHTML = `
+    wrap.innerHTML=`
       <h1 id="r-title">${title}</h1>
       <div class="r-meta" id="r-meta">
         <div><strong>專案：</strong><span id="r-proj">${proj}</span></div>
@@ -2202,62 +1371,62 @@
       </div>
       <h2>二、總結與分析</h2>
       <div class="r-grid2">
-        <div class="r-col"><h3>📊 總結重點</h3>${S.summaryHighlights || '尚無數據可分析。'}</div>
-        <div class="r-col"><h3>🧐 分析原因</h3>${S.analysisReason || '尚無數據可分析。'}</div>
+        <div class="r-col"><h3>📊 總結重點</h3>${S.summaryHighlights||'尚無數據可分析。'}</div>
+        <div class="r-col"><h3>🧐 分析原因</h3>${S.analysisReason||'尚無數據可分析。'}</div>
       </div>
       <h2>三、優化教戰守則</h2>
-      <div id="r-stages">${stagesHTML || '<p style="color:#94a3b8;font-style:italic;">目前數據不足以生成優化建議。</p>'}</div>
+      <div id="r-stages">${stagesHTML||'<p style="color:#94a3b8;font-style:italic;">目前數據不足以生成優化建議。</p>'}</div>
       <div style="text-align:center;color:#94a3b8;font-size:12px;border-top:1px solid #f1f5f9;padding-top:16px;margin-top:36px;">工具製作人：李敏瑞</div>`;
 
-          // 直接建立圖表（使用 rAF 確保 canvas 已在 DOM 中）
-          S._reportDataVersion = S._currentDataVersion;
-          requestAnimationFrame(() => {
-            const rc = document.getElementById('report-chart');
-            if (!rc) return;
-            const pts = buildScatterData(S.data.items);
-            const cfg = buildChartConfig(true);
-            const sd = cfg.data.datasets.find(d => d.id === 'scatter');
-            sd.data = pts; sd.backgroundColor = pts.map(p => CAT_COLORS[p.cat] || '#64748b'); sd.borderColor = pts.map(() => '#fff');
-            reportChartInstance = new Chart(rc.getContext('2d'), cfg);
-            reportSortMode = 'id';
-            renderReportQTable();
-          });
+    // 直接建立圖表（使用 rAF 確保 canvas 已在 DOM 中）
+    S._reportDataVersion=S._currentDataVersion;
+    requestAnimationFrame(()=>{
+      const rc=document.getElementById('report-chart');
+      if(!rc) return;
+      const pts=buildScatterData(S.data.items);
+      const cfg=buildChartConfig(true);
+      const sd=cfg.data.datasets.find(d=>d.id==='scatter');
+      sd.data=pts; sd.backgroundColor=pts.map(p=>CAT_COLORS[p.cat]||'#64748b'); sd.borderColor=pts.map(()=>'#fff');
+      reportChartInstance=new Chart(rc.getContext('2d'),cfg);
+      reportSortMode='id';
+      renderReportQTable();
+    });
 
-        } else {
-          // ★ 只更新文字內容（不重建圖表），確保報告設定即時反映
-          const el = id => document.getElementById(id);
-          if (el('r-title')) el('r-title').textContent = title;
-          if (el('r-proj')) el('r-proj').textContent = proj;
-          if (el('r-auth')) el('r-auth').textContent = auth;
-          if (el('r-dt')) el('r-dt').textContent = dt;
-          if (el('r-stages')) el('r-stages').innerHTML = stagesHTML || '<p style="color:#94a3b8;font-style:italic;">目前數據不足以生成優化建議。</p>';
-          // 刷新題目清單（可能有排序變更）
-          renderReportQTable();
-        }
-      }
+  } else {
+    // ★ 只更新文字內容（不重建圖表），確保報告設定即時反映
+    const el=id=>document.getElementById(id);
+    if(el('r-title')) el('r-title').textContent=title;
+    if(el('r-proj'))  el('r-proj').textContent=proj;
+    if(el('r-auth'))  el('r-auth').textContent=auth;
+    if(el('r-dt'))    el('r-dt').textContent=dt;
+    if(el('r-stages')) el('r-stages').innerHTML=stagesHTML||'<p style="color:#94a3b8;font-style:italic;">目前數據不足以生成優化建議。</p>';
+    // 刷新題目清單（可能有排序變更）
+    renderReportQTable();
+  }
+}
 
-      // ══════ 匯出 HTML ══════
-      async function exportHTML() {
-        if (!S.data.items.length) { toast('無數據可匯出', 'error'); return; }
-        const isReportTab = document.querySelector('.nav-tab[data-tab="report"]').classList.contains('active');
-        if (!isReportTab) { toast('請先切換至「報告預覽」分頁後再執行匯出', 'info'); switchTab('report'); return; }
-        toast('正在產生 HTML 報告…', 'info');
-        try {
-          const title = document.getElementById('report-title').value || 'Kano 模型分析報告';
-          const proj = document.getElementById('project-name').value || '';
-          const auth = document.getElementById('author').value || '';
-          const dt = document.getElementById('report-date').value || '';
-          const samples = S.data.meta.totalRespondents;
+// ══════ 匯出 HTML ══════
+async function exportHTML(){
+  if(!S.data.items.length){toast('無數據可匯出','error');return;}
+  const isReportTab=document.querySelector('.nav-tab[data-tab="report"]').classList.contains('active');
+  if(!isReportTab){toast('請先切換至「報告預覽」分頁後再執行匯出','info');switchTab('report');return;}
+  toast('正在產生 HTML 報告…','info');
+  try{
+    const title  =document.getElementById('report-title').value||'Kano 模型分析報告';
+    const proj   =document.getElementById('project-name').value||'';
+    const auth   =document.getElementById('author').value||'';
+    const dt     =document.getElementById('report-date').value||'';
+    const samples=S.data.meta.totalRespondents;
 
-          // ── 題目清單（帶排序 JS）──────────────────────────────
-          const allItemsForExport = S.data.items.map(i => ({
-            displayId: i.displayId, id: i.id, text: i.text,
-            category: i.category,
-            catPriority: CAT_PRIORITY[i.category] || 9,
-            catColor: CAT_COLORS[i.category] || '#64748b',
-            catName: SHORT_NAMES[i.category] || i.category
-          }));
-          const exportItemsHTML = `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:8px 0;">
+    // ── 題目清單（帶排序 JS）──────────────────────────────
+    const allItemsForExport=S.data.items.map(i=>({
+      displayId:i.displayId,id:i.id,text:i.text,
+      category:i.category,
+      catPriority:CAT_PRIORITY[i.category]||9,
+      catColor:CAT_COLORS[i.category]||'#64748b',
+      catName:SHORT_NAMES[i.category]||i.category
+    }));
+    const exportItemsHTML=`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:8px 0;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <span style="font-size:13px;font-weight:700;color:#334155;">題目對照表</span>
     <div style="display:flex;gap:6px;">
@@ -2268,43 +1437,43 @@
   <div id="x-qlist"></div>
 </div>`;
 
-          // ── 優化階段 HTML ─────────────────────────────────────
-          const stageConf = {
-            1: { title: '搞定基礎體驗', sub: '針對基本品質 (M)', border: '#fecaca', bg: '#fef2f2', badgeBg: '#fecaca', badgeC: '#991b1b', label: '第一階段：優先止血', cats: ['M'] },
-            2: { title: '創造亮點與爽感', sub: '針對期望/魅力 (O & A)', border: '#fde68a', bg: '#fffbeb', badgeBg: '#fde68a', badgeC: '#92400e', label: '第二階段：體驗升級', cats: ['O', 'A'] },
-            3: { title: '避免無效開發', sub: '針對無差異 (I)', border: '#a7f3d0', bg: '#ecfdf5', badgeBg: '#a7f3d0', badgeC: '#065f46', label: '第三階段：資源節流', cats: ['I', 'R', 'Q'] }
-          };
-          const stages = [1, 2, 3].filter(s => S.improvementItems.some(i => stageConf[s].cats.includes(i.category)));
-          const stagesHTML = stages.map(s => {
-            const c = stageConf[s];
-            const its = S.improvementItems.filter(i => c.cats.includes(i.category));
-            return `<div style="border:2px solid ${c.border};border-radius:8px;overflow:hidden;margin-bottom:20px;">
+    // ── 優化階段 HTML ─────────────────────────────────────
+    const stageConf={
+      1:{title:'搞定基礎體驗',sub:'針對基本品質 (M)',border:'#fecaca',bg:'#fef2f2',badgeBg:'#fecaca',badgeC:'#991b1b',label:'第一階段：優先止血',cats:['M']},
+      2:{title:'創造亮點與爽感',sub:'針對期望/魅力 (O & A)',border:'#fde68a',bg:'#fffbeb',badgeBg:'#fde68a',badgeC:'#92400e',label:'第二階段：體驗升級',cats:['O','A']},
+      3:{title:'避免無效開發',sub:'針對無差異 (I)',border:'#a7f3d0',bg:'#ecfdf5',badgeBg:'#a7f3d0',badgeC:'#065f46',label:'第三階段：資源節流',cats:['I','R','Q']}
+    };
+    const stages=[1,2,3].filter(s=>S.improvementItems.some(i=>stageConf[s].cats.includes(i.category)));
+    const stagesHTML=stages.map(s=>{
+      const c=stageConf[s];
+      const its=S.improvementItems.filter(i=>c.cats.includes(i.category));
+      return`<div style="border:2px solid ${c.border};border-radius:8px;overflow:hidden;margin-bottom:20px;">
         <div style="background:${c.bg};padding:16px 20px;border-bottom:2px solid ${c.border};">
           <div style="display:inline-block;padding:3px 10px;background:${c.badgeBg};color:${c.badgeC};border-radius:20px;font-size:11px;font-weight:bold;margin-bottom:6px;">${c.label}</div>
           <div style="font-size:18px;font-weight:bold;color:#1e293b;margin:4px 0;">${c.title}</div>
           <p style="font-size:13px;color:#64748b;margin:0;">${c.sub}</p>
         </div>
         <div style="padding:16px 20px;">
-          ${its.map(item => `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;">
+          ${its.map(item=>`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;">
             <span style="background:#1e293b;color:#fff;font-size:11px;font-weight:bold;padding:2px 7px;border-radius:4px;">${item.id}</span>
-            <span style="background:${CAT_COLORS[item.category] || '#64748b'};color:#fff;font-size:11px;padding:2px 7px;border-radius:4px;">${SHORT_NAMES[item.category] || item.category}</span>
+            <span style="background:${CAT_COLORS[item.category]||'#64748b'};color:#fff;font-size:11px;padding:2px 7px;border-radius:4px;">${SHORT_NAMES[item.category]||item.category}</span>
             <span style="font-size:13px;font-weight:600;color:#1e293b;">${item.text}</span>
           </div>`).join('')}
         </div>
       </div>`;
-          }).join('');
+    }).join('');
 
-          // ── 內嵌圖表的完整散佈點資料 ─────────────────────────
-          const pts = buildScatterData(S.data.items);
-          const chartDataJSON = JSON.stringify({
-            scatter: pts.map(p => ({ x: p.x, y: p.y, origX: p.origX, origY: p.origY, label: p.label, cat: p.cat, color: CAT_COLORS[p.cat] || '#64748b' })),
-            curve: {
-              A: CURVE.A, O: CURVE.O, M: CURVE.M, I: CURVE.I, R: CURVE.R
-            }
-          });
+    // ── 內嵌圖表的完整散佈點資料 ─────────────────────────
+    const pts=buildScatterData(S.data.items);
+    const chartDataJSON=JSON.stringify({
+      scatter:pts.map(p=>({x:p.x,y:p.y,origX:p.origX,origY:p.origY,label:p.label,cat:p.cat,color:CAT_COLORS[p.cat]||'#64748b'})),
+      curve:{
+        A:CURVE.A, O:CURVE.O, M:CURVE.M, I:CURVE.I, R:CURVE.R
+      }
+    });
 
-          // ── 生成完整 HTML ─────────────────────────────────────
-          const html = `<!DOCTYPE html>
+    // ── 生成完整 HTML ─────────────────────────────────────
+    const html=`<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -2354,11 +1523,11 @@ h2{font-size:20px;font-weight:700;border-left:4px solid #10b981;padding-left:12p
   ${exportItemsHTML}
   <h2>二、總結與分析</h2>
   <div class="g2">
-    <div class="gc"><h3>📊 總結重點</h3>${S.summaryHighlights || '尚無數據。'}</div>
-    <div class="gc"><h3>🧐 分析原因</h3>${S.analysisReason || '尚無數據。'}</div>
+    <div class="gc"><h3>📊 總結重點</h3>${S.summaryHighlights||'尚無數據。'}</div>
+    <div class="gc"><h3>🧐 分析原因</h3>${S.analysisReason||'尚無數據。'}</div>
   </div>
   <h2>三、優化教戰守則</h2>
-  ${stagesHTML || '<p style="color:#94a3b8;">目前數據不足。</p>'}
+  ${stagesHTML||'<p style="color:#94a3b8;">目前數據不足。</p>'}
   <div style="text-align:center;color:#cbd5e1;font-size:12px;border-top:1px solid #f1f5f9;padding-top:16px;margin-top:36px;">工具製作人：李敏瑞</div>
 </div>
 
@@ -2484,14 +1653,13 @@ new Chart(document.getElementById('ex-chart').getContext('2d'),{
 </body>
 </html>`;
 
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-          a.download = `Kano_Report_${new Date().toISOString().split('T')[0]}.html`;
-          a.click();
-          toast('HTML 報告匯出成功！', 'success');
-        } catch (e) { toast('匯出失敗：' + e.message, 'error'); console.error(e); }
-      }
-    </script>
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+    a.download=`Kano_Report_${new Date().toISOString().split('T')[0]}.html`;
+    a.click();
+    toast('HTML 報告匯出成功！','success');
+  }catch(e){toast('匯出失敗：'+e.message,'error');console.error(e);}
+}
+</script>
 </body>
-
 </html>
