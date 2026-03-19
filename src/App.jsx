@@ -62,13 +62,12 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
 
   const [viewMode, setViewMode] = useState(initialViewMode);
   const [sortMode, setSortMode] = useState('id');
-  const [filterCategory, setFilterCategory] = useState('all');
   const [notification, setNotification] = useState(null);
 
   // 從 localStorage 讀取 API Key
   const [generatorState, setGeneratorState] = useState(() => {
     let storedKey = '';
-    try { storedKey = localStorage.getItem('gemini_api_key') || ''; } catch { }
+    try { storedKey = localStorage.getItem('gemini_api_key') || ''; } catch {}
     return {
       apiKey: storedKey,
       files: [],
@@ -80,16 +79,16 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
   });
 
   // 報告相關狀態
-  const [reportTitle, setReportTitle] = useState('');
-  const [projectName, setProjectName] = useState('');
-  const [author, setAuthor] = useState('');
-  const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportTitle, setReportTitle]         = useState('');
+  const [projectName, setProjectName]         = useState('');
+  const [author, setAuthor]                   = useState('');
+  const [reportDate, setReportDate]           = useState(new Date().toISOString().split('T')[0]);
   const [summaryHighlights, setSummaryHighlights] = useState('');
-  const [analysisReason, setAnalysisReason] = useState('');
+  const [analysisReason, setAnalysisReason]   = useState('');
   const [improvementItems, setImprovementItems] = useState([]);
 
-  const fileInputRef = useRef(null);
-  const reportRef = useRef(null);
+  const fileInputRef     = useRef(null);
+  const reportRef        = useRef(null);
   const dashboardChartRef = useRef(null);
 
   const chartCenter = { x: -0.5, y: 0.5 };
@@ -169,7 +168,7 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
         };
       })
       .sort((a, b) => (a.stage !== b.stage ? a.stage - b.stage : 0)),
-    [improvementItems]);
+  [improvementItems]);
 
   const activeStages = useMemo(
     () => [1, 2, 3].filter((stage) => groupedImprovementItems.some((g) => g.stage === stage)),
@@ -190,16 +189,16 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
         const wsDataArray = window.XLSX.utils.sheet_to_json(ws, { header: 1 });
         if (!wsDataArray || wsDataArray.length < 2) { showNotification('Excel 無有效數據 (Rows < 2)', 'error'); return; }
 
-        const headers = wsDataArray[0];
+        const headers  = wsDataArray[0];
         const dataRows = wsDataArray.slice(1);
         const START_COL_INDEX = 6;
         const processedItems = [];
         let validQuestionCount = 0;
 
         const generatedList = generatorState.generatedQuestions || [];
-        const currentGuide = generatorState.generatedGuide || DEFAULT_GUIDE;
-        const guideLookup = { positive: {}, negative: {} };
-        const getCatCode = (str) => (str || '').split(' ')[0].trim().toUpperCase();
+        const currentGuide  = generatorState.generatedGuide || DEFAULT_GUIDE;
+        const guideLookup   = { positive: {}, negative: {} };
+        const getCatCode    = (str) => (str || '').split(' ')[0].trim().toUpperCase();
 
         currentGuide.positive_analysis?.forEach((item) => {
           guideLookup.positive[normalizeAnswer(item.response)] = getCatCode(item.category);
@@ -223,8 +222,8 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
           });
 
           const validTotal = counts.A + counts.O + counts.M + counts.I + counts.R;
-          const safeTotal = validTotal === 0 ? 1 : validTotal;
-          const si = parseFloat(((counts.A + counts.O) / safeTotal).toFixed(3));
+          const safeTotal  = validTotal === 0 ? 1 : validTotal;
+          const si  = parseFloat(((counts.A + counts.O) / safeTotal).toFixed(3));
           const dsi = parseFloat(((counts.O + counts.M) / safeTotal * -1).toFixed(3));
 
           const calculatedCategory = getQuadrantCategory(si, dsi, chartCenter);
@@ -245,9 +244,9 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
             actualCategory: calculatedCategory,
             stats: counts,
             answerCounts: rawCounts,
-            execution_advice: linkedQuestion ? linkedQuestion.execution_advice : null,
+            execution_advice:    linkedQuestion ? linkedQuestion.execution_advice    : null,
             modification_method: linkedQuestion ? linkedQuestion.modification_method : null,
-            feature: linkedQuestion ? linkedQuestion.feature : null,
+            feature:             linkedQuestion ? linkedQuestion.feature              : null,
           });
           validQuestionCount++;
         }
@@ -327,9 +326,9 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
 
         const margin = 0.02;
         if (node.lx < -1 + margin) fx += 0.01;
-        if (node.lx > 0 - margin) fx -= 0.01;
-        if (node.ly < 0 + margin) fy += 0.01;
-        if (node.ly > 1 - margin) fy -= 0.01;
+        if (node.lx > 0 - margin)  fx -= 0.01;
+        if (node.ly < 0 + margin)  fy += 0.01;
+        if (node.ly > 1 - margin)  fy -= 0.01;
 
         node.vx = (node.vx + fx) * 0.9;
         node.vy = (node.vy + fy) * 0.9;
@@ -343,22 +342,15 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
 
   // ── 排序後的題目列表 ─────────────────────────────────────
   const sortedListItems = useMemo(() => {
-    let filtered = [...data.items];
-    if (filterCategory !== 'all') {
-      filtered = filtered.filter((item) => item.category === filterCategory);
-    }
+    let sorted = [...data.items];
     if (sortMode === 'id') {
-      filtered.sort((a, b) => (parseInt(a.id.replace(/\D/g, '')) || 0) - (parseInt(b.id.replace(/\D/g, '')) || 0));
+      sorted.sort((a, b) => (parseInt(a.id.replace(/\D/g, '')) || 0) - (parseInt(b.id.replace(/\D/g, '')) || 0));
     } else {
-      const order = { M: 1, O: 2, A: 3, I: 4, R: 5, Q: 6 };
-      filtered.sort((a, b) => {
-        const catDiff = (order[a.category] || 99) - (order[b.category] || 99);
-        if (catDiff !== 0) return catDiff;
-        return (parseInt(a.id.replace(/\D/g, '')) || 0) - (parseInt(b.id.replace(/\D/g, '')) || 0);
-      });
+      const order = { A: 1, O: 2, M: 3, I: 4, R: 5, Q: 6 };
+      sorted.sort((a, b) => (order[a.category] || 99) - (order[b.category] || 99));
     }
-    return filtered;
-  }, [data.items, sortMode, filterCategory]);
+    return sorted;
+  }, [data.items, sortMode]);
 
   const dashboardFlatItems = useMemo(() =>
     sortedListItems.map((item) => ({
@@ -373,7 +365,7 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
       stats: item.stats,
       answerCounts: item.answerCounts,
     })),
-    [sortedListItems]);
+  [sortedListItems]);
 
   // ── 匯出 HTML 報告 ───────────────────────────────────────
   const handleExportHTML = async () => {
@@ -399,14 +391,9 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
 
       const catRank = { A: 3, O: 2, M: 1, I: 4, R: 5, Q: 6 };
 
-      const allItemsSorted = [...data.items].sort((a, b) =>
-        (parseInt(a.displayId.replace(/\D/g, '')) || 0) - (parseInt(b.displayId.replace(/\D/g, '')) || 0)
-      );
-
-      const itemsHTML = allItemsSorted.map((item) => `
+      const itemsHTML = sortedListItems.map((item) => `
         <div class="question-card"
           data-id="${parseInt(item.displayId.replace(/\D/g, '')) || 0}"
-          data-category="${item.category}"
           data-category-rank="${catRank[item.category] || 99}"
           style="display:flex;align-items:flex-start;gap:12px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #f1f5f9;margin-bottom:8px;page-break-inside:avoid;">
           <div style="flex-shrink:0;">
@@ -475,65 +462,19 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
     .grid-col { padding: 24px; font-size: 14px; white-space: pre-wrap; }
     #question-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .sort-btn { padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; cursor: pointer; color: #475569; font-weight: bold; }
-    .sort-btn.active { background: #1e293b; color: white; border-color: #1e293b; }
-    .filter-btn { padding: 4px 10px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 11px; cursor: pointer; color: #475569; font-weight: bold; transition: all 0.15s; }
-    .filter-btn.active { color: white; border-color: transparent; }
     @media (max-width: 768px) { .meta, .grid-2, #question-list { grid-template-columns: 1fr !important; } }
   </style>
   <script>
-    var currentSort = 'id';
-    var currentFilter = 'all';
-    var catColors = ${JSON.stringify(CATEGORY_COLORS)};
-
     function sortQuestions(mode) {
-      currentSort = mode;
-      document.querySelectorAll('.sort-btn').forEach(function(btn) { btn.classList.remove('active'); });
-      document.querySelector('.sort-btn[data-sort="' + mode + '"]').classList.add('active');
-      applyFilterAndSort();
-    }
-
-    function filterQuestions(cat) {
-      currentFilter = (currentFilter === cat) ? 'all' : cat;
-      document.querySelectorAll('.filter-btn').forEach(function(btn) {
-        var btnCat = btn.dataset.cat;
-        if (btnCat === currentFilter) {
-          btn.classList.add('active');
-          btn.style.backgroundColor = btnCat === 'all' ? '#1e293b' : (catColors[btnCat] || '#64748b');
-          btn.style.color = 'white';
-          btn.style.borderColor = 'transparent';
-        } else {
-          btn.classList.remove('active');
-          btn.style.backgroundColor = '#f1f5f9';
-          btn.style.color = '#475569';
-          btn.style.borderColor = '#cbd5e1';
-        }
-      });
-      applyFilterAndSort();
-    }
-
-    function applyFilterAndSort() {
-      var container = document.getElementById('question-list');
-      var items = Array.from(container.children);
-      items.forEach(function(item) {
-        if (currentFilter === 'all' || item.dataset.category === currentFilter) {
-          item.style.display = 'flex';
-        } else {
-          item.style.display = 'none';
-        }
-      });
-      items.sort(function(a, b) {
-        if (currentSort === 'id') return parseInt(a.dataset.id) - parseInt(b.dataset.id);
-        var rankA = parseInt(a.dataset.categoryRank);
-        var rankB = parseInt(b.dataset.categoryRank);
+      const container = document.getElementById('question-list');
+      const items = Array.from(container.children);
+      items.sort((a, b) => {
+        if (mode === 'id') return parseInt(a.dataset.id) - parseInt(b.dataset.id);
+        const rankA = parseInt(a.dataset.categoryRank);
+        const rankB = parseInt(b.dataset.categoryRank);
         return rankA !== rankB ? rankA - rankB : parseInt(a.dataset.id) - parseInt(b.dataset.id);
       });
-      items.forEach(function(item) { container.appendChild(item); });
-      // Switch layout: double column for id sort, single column for category sort
-      if (currentSort === 'id') {
-        container.style.gridTemplateColumns = '1fr 1fr';
-      } else {
-        container.style.gridTemplateColumns = '1fr';
-      }
+      items.forEach(item => container.appendChild(item));
     }
   </script>
 </head>
@@ -552,16 +493,9 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
       ${chartImageBase64 ? `<img src="${chartImageBase64}" class="chart-img" />` : '<p>(圖表匯出失敗)</p>'}
     </div>
 
-    <div style="margin-bottom:12px;display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap;">
-      <button class="sort-btn active" data-sort="id" onclick="sortQuestions('id')">依照題號</button>
-      <button class="sort-btn" data-sort="category" onclick="sortQuestions('category')">依照屬性</button>
-      <span style="width:1px;height:20px;background:#cbd5e1;margin:0 4px;"></span>
-      <button class="filter-btn active" data-cat="all" onclick="filterQuestions('all')" style="background:#1e293b;color:white;border-color:transparent;">全部</button>
-      <button class="filter-btn" data-cat="A" onclick="filterQuestions('A')">魅力 (A)</button>
-      <button class="filter-btn" data-cat="O" onclick="filterQuestions('O')">期望 (O)</button>
-      <button class="filter-btn" data-cat="M" onclick="filterQuestions('M')">基本 (M)</button>
-      <button class="filter-btn" data-cat="I" onclick="filterQuestions('I')">無差異 (I)</button>
-      <button class="filter-btn" data-cat="R" onclick="filterQuestions('R')">反向 (R)</button>
+    <div style="text-align:right;margin-bottom:12px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="sort-btn" onclick="sortQuestions('id')">依照題號排序</button>
+      <button class="sort-btn" onclick="sortQuestions('category')">依照屬性排序</button>
     </div>
     <div id="question-list">${itemsHTML}</div>
 
@@ -586,8 +520,8 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
 </html>`;
 
       const blob = new Blob([htmlContent], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
       a.href = url;
       a.download = `Report_Kano_${reportDate}.html`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -617,16 +551,17 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
           <div className="flex gap-4">
             {[
               { key: 'generator', label: '題目產生器', icon: <Wand className="w-4 h-4" />, color: 'indigo' },
-              { key: 'dashboard', label: '圖表看板', icon: null, color: 'blue' },
-              { key: 'survey', label: '問卷填寫預覽', icon: <Edit className="w-4 h-4" />, color: 'indigo' },
-              { key: 'report', label: '報告預覽', icon: null, color: 'blue' },
-              { key: 'data', label: 'API 數據', icon: null, color: 'blue' },
+              { key: 'dashboard', label: '圖表看板',   icon: null,                          color: 'blue'   },
+              { key: 'survey',   label: '問卷填寫預覽', icon: <Edit className="w-4 h-4" />,  color: 'indigo' },
+              { key: 'report',   label: '報告預覽',    icon: null,                          color: 'blue'   },
+              { key: 'data',     label: 'API 數據',    icon: null,                          color: 'blue'   },
             ].map(({ key, label, icon }) => (
               <button
                 key={key}
                 onClick={() => setViewMode(key)}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${viewMode === key ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${
+                  viewMode === key ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
               >
                 {icon} {label}
               </button>
@@ -636,8 +571,9 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
             <button
               onClick={handleExportHTML}
               disabled={!loaded.html2canvas}
-              className={`flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold transition shadow-sm ml-auto ${!loaded.html2canvas ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+              className={`flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold transition shadow-sm ml-auto ${
+                !loaded.html2canvas ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
               <FileText className="w-4 h-4" />
               {!loaded.html2canvas ? '載入元件中...' : '匯出 HTML'}
@@ -690,7 +626,7 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
                   {[
                     { label: '報告名稱', value: reportTitle, set: setReportTitle },
                     { label: '專案名稱', value: projectName, set: setProjectName },
-                    { label: '製作人', value: author, set: setAuthor },
+                    { label: '製作人',   value: author,      set: setAuthor      },
                   ].map(({ label, value, set }) => (
                     <div key={label}>
                       <label className="text-xs font-bold text-slate-500 block mb-1">{label}</label>
@@ -734,78 +670,19 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
                   <SharedKanoChart height={500} chartData={chartData} />
                 </div>
                 <div className="mt-6 border-t pt-4">
-                  <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
+                  <div className="flex justify-between mb-2">
                     <h3 className="font-bold text-sm flex gap-2">
                       <Info className="w-4 h-4" /> 題目詳細數據與對照
                     </h3>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setSortMode('id')}
-                          className={`px-3 py-1 rounded text-xs font-bold transition ${sortMode === 'id'
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >依題號</button>
-                        <button
-                          onClick={() => setSortMode('category')}
-                          className={`px-3 py-1 rounded text-xs font-bold transition ${sortMode === 'category'
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >依屬性</button>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setFilterCategory('all')}
-                          className={`px-2 py-1 rounded text-xs font-bold transition ${filterCategory === 'all'
-                              ? 'bg-slate-800 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >全部</button>
-                        {['A', 'O', 'M', 'I', 'R'].map((cat) => (
-                          <button
-                            key={cat}
-                            onClick={() => setFilterCategory(filterCategory === cat ? 'all' : cat)}
-                            className={`px-2 py-1 rounded text-xs font-bold transition ${filterCategory === cat
-                                ? 'text-white'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              }`}
-                            style={filterCategory === cat ? { backgroundColor: CATEGORY_COLORS[cat] } : {}}
-                          >{SHORT_NAMES[cat]}</button>
-                        ))}
-                      </div>
-                    </div>
+                    <select
+                      value={sortMode} onChange={(e) => setSortMode(e.target.value)}
+                      className="text-xs border rounded p-1 bg-slate-50"
+                    >
+                      <option value="id">依照題號</option>
+                      <option value="category">依照屬性</option>
+                    </select>
                   </div>
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                    <div className={`grid gap-4 ${sortMode === 'category' ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
-                      {dashboardFlatItems.map((item) => (
-                        <div
-                          key={item.uniqueKey}
-                          className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:bg-white hover:shadow-sm transition-all"
-                        >
-                          <div className="flex flex-col items-center gap-1 shrink-0">
-                            <span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-bold min-w-[36px] text-center">
-                              {item.displayId}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span
-                                className="text-white px-2 py-0.5 rounded text-[10px] font-bold"
-                                style={{ backgroundColor: CATEGORY_COLORS[item.category] }}
-                              >
-                                {SHORT_NAMES[item.category]}
-                              </span>
-                            </div>
-                            <p className="text-sm text-slate-700 leading-relaxed font-medium break-words">
-                              {item.text}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <QuestionStatsTable items={dashboardFlatItems} />
                 </div>
               </div>
             </div>
@@ -834,78 +711,6 @@ const App = ({ data: initialData, setData: initialSetData, initialViewMode = 'ge
                 </h2>
                 <div className="h-[500px] w-full border border-slate-200 rounded-lg p-4">
                   <SharedKanoChart height={460} chartData={chartData} />
-                </div>
-                <div className="mt-6 border-t pt-4">
-                  <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
-                    <h3 className="font-bold text-sm">題目對照表</h3>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setSortMode('id')}
-                          className={`px-3 py-1 rounded text-xs font-bold transition ${sortMode === 'id'
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >依題號</button>
-                        <button
-                          onClick={() => setSortMode('category')}
-                          className={`px-3 py-1 rounded text-xs font-bold transition ${sortMode === 'category'
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >依屬性</button>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setFilterCategory('all')}
-                          className={`px-2 py-1 rounded text-xs font-bold transition ${filterCategory === 'all'
-                              ? 'bg-slate-800 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >全部</button>
-                        {['A', 'O', 'M', 'I', 'R'].map((cat) => (
-                          <button
-                            key={cat}
-                            onClick={() => setFilterCategory(filterCategory === cat ? 'all' : cat)}
-                            className={`px-2 py-1 rounded text-xs font-bold transition ${filterCategory === cat
-                                ? 'text-white'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              }`}
-                            style={filterCategory === cat ? { backgroundColor: CATEGORY_COLORS[cat] } : {}}
-                          >{SHORT_NAMES[cat]}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                    <div className={`grid gap-4 ${sortMode === 'category' ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
-                      {dashboardFlatItems.map((item) => (
-                        <div
-                          key={item.uniqueKey}
-                          className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:bg-white hover:shadow-sm transition-all"
-                        >
-                          <div className="flex flex-col items-center gap-1 shrink-0">
-                            <span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-bold min-w-[36px] text-center">
-                              {item.displayId}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span
-                                className="text-white px-2 py-0.5 rounded text-[10px] font-bold"
-                                style={{ backgroundColor: CATEGORY_COLORS[item.category] }}
-                              >
-                                {SHORT_NAMES[item.category]}
-                              </span>
-                            </div>
-                            <p className="text-sm text-slate-700 leading-relaxed font-medium break-words">
-                              {item.text}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </div>
 
