@@ -317,12 +317,8 @@ export const SuggestionCard = ({ group }) => {
   );
 };
 
-// ─── 題目統計資料表（左右分欄布局）─────────────────────────────
-export const QuestionStatsTable = ({ items }) => {
-  const half = Math.ceil(items.length / 2);
-  const leftItems = items.slice(0, half);
-  const rightItems = items.slice(half);
-
+// ─── 題目統計資料表（依排序模式切換佈局）─────────────────────────
+export const QuestionStatsTable = ({ items, sortMode }) => {
   const renderItem = (item) => (
     <div
       key={item.uniqueKey}
@@ -351,9 +347,8 @@ export const QuestionStatsTable = ({ items }) => {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
-        <div className="space-y-2">{leftItems.map(renderItem)}</div>
-        <div className="space-y-2">{rightItems.map(renderItem)}</div>
+      <div className={`grid gap-4 ${sortMode === 'category' ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
+        {items.map(renderItem)}
       </div>
     </div>
   );
