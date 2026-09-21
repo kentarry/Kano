@@ -1142,6 +1142,7 @@
                 <option value="gemini-2.5-flash">Gemini 2.5 Flash（品質優先）</option>
                 <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite（額度／速度優先）</option>
               </select>
+              <div class="field-hint" id="model-status">輸入 API Key 後按「測試連線」，系統會讀取此 Key 實際可用的模型。</div>
             </div>
             <div class="form-group" style="margin-bottom:0;flex:1;display:flex;flex-direction:column;">
               <label>定義提詞（Prompt）</label>
@@ -1558,6 +1559,69 @@
       }
 
       // ══════ Gemini API ══════
+      function normalizeModelName(name) {
+        return String(name || '').replace(/^models\//, '');
+      }
+
+      function isSurveyGenerationModel(model) {
+        const id = normalizeModelName(model?.name);
+        const supportsGenerate = model?.supportedGenerationMethods?.includes('generateContent');
+        // Exclude image, audio, live and other specialized Flash variants. The survey
+        // flow requires a general multimodal text-output model with JSON mode.
+        const specialized = /(?:tts|native|audio|image|live|robotics)/i.test(id);
+        return supportsGenerate && !specialized && /^gemini-(?:(?:\d+(?:\.\d+)*)-)?flash(?:-lite)?(?:-(?:latest|preview(?:-[\w-]+)?))?$/.test(id);
+      }
+
+      function modelPreferenceScore(id, requested) {
+        const wantsLite = /flash-lite/.test(requested);
+        const isLite = /flash-lite/.test(id);
+        const version = id.match(/^gemini-(\d+(?:\.\d+)*)-/)?.[1]
+          ?.split('.').reduce((score, part, index) => score + Number(part) * Math.pow(100, 2 - index), 0) || 0;
+        let score = version;
+        if (id === requested) score += 1000000;
+        if (isLite === wantsLite) score += 100000;
+        if (!/preview|experimental|exp/.test(id)) score += 10000;
+        if (/latest$/.test(id)) score += 1000;
+        return score;
+      }
+
+      function modelDisplayName(id, displayName) {
+        const suffix = /flash-lite/.test(id) ? '（額度／速度優先）' : '（品質優先）';
+        return `${displayName || id} ${suffix}`;
+      }
+
+      async function refreshAvailableModels(apiKey, requestedModel) {
+        if (!apiKey?.trim()) throw new Error('請先輸入有效的 Gemini API Key。');
+        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000', {
+          headers: { 'x-goog-api-key': apiKey.trim() }
+        });
+        if (!res.ok) throw readableApiError(res.status, await res.json().catch(() => ({})), '模型清單');
+        const data = await res.json();
+        const discovered = (data.models || [])
+          .filter(isSurveyGenerationModel)
+          .map(model => ({ id: normalizeModelName(model.name), displayName: model.displayName }))
+          .filter((model, index, all) => all.findIndex(item => item.id === model.id) === index);
+        // Google may keep retired preview IDs in ListModels for a while. Prefer
+        // stable/latest endpoints whenever at least one is available.
+        const stable = discovered.filter(model => !/preview|experimental|exp/.test(model.id));
+        const available = (stable.length ? stable : discovered)
+          .sort((a, b) => modelPreferenceScore(b.id, requestedModel) - modelPreferenceScore(a.id, requestedModel));
+        if (!available.length) {
+          throw new Error('此 API Key 的模型清單中沒有可用的一般 Gemini Flash 文字模型。請確認這是 Google AI Studio 的 Gemini API Key，而不是其他服務的金鑰。');
+        }
+        const selected = available.find(model => model.id === requestedModel) || available[0];
+        const select = document.getElementById('model-select');
+        select.innerHTML = available.map(model =>
+          `<option value="${escapeHtml(model.id)}">${escapeHtml(modelDisplayName(model.id, model.displayName))}</option>`
+        ).join('');
+        select.value = selected.id;
+        document.getElementById('model-status').textContent = `此 Key 可用 ${available.length} 個問卷模型；目前使用 ${selected.id}`;
+        if (requestedModel && selected.id !== requestedModel) {
+          toast(`原模型 ${requestedModel} 對此 Key 不可用，已自動改用 ${selected.id}`, 'info');
+        }
+        return selected.id;
+      }
+
       function readableApiError(status, body, model) {
         const message = body?.error?.message || `HTTP ${status}`;
         const reason = body?.error?.details?.find(d => d.reason)?.reason || '';
@@ -1567,7 +1631,7 @@
         if (status === 400) return new Error(`請求內容不被接受，常見原因是素材過大或格式不支援。Google 回覆：${message}`);
         if (status === 402) return new Error('API 預付額度已用完，請補充額度或開啟自動儲值後再試。');
         if (status === 401 || status === 403) return new Error('API Key 沒有此模型的權限，或 Key 的網站／API 限制阻擋了此頁面。請檢查 Google Cloud Key 限制。');
-        if (status === 404) return new Error(`找不到模型 ${model}，請改選另一個模型後重試。`);
+        if (status === 404) return new Error(`Google 找不到模型 ${model}。請先按「測試連線」重新讀取此 API Key 的可用模型。`);
         if (status === 429) return new Error('API 的每分鐘、每日或花費額度已達上限。請稍後重試，或改用 Flash-Lite。');
         if (status >= 500) return new Error(`Gemini 服務暫時異常（${status}），請稍後重試。`);
         return new Error(`Gemini API 錯誤（${status}）：${message}`);
@@ -1612,13 +1676,10 @@
 
       async function testApiConnection() {
         const apiKey = document.getElementById('api-key').value.trim();
-        const model = document.getElementById('model-select').value;
+        const requestedModel = document.getElementById('model-select').value;
         if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
         try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}`, {
-            headers: { 'x-goog-api-key': apiKey }
-          });
-          if (!res.ok) throw readableApiError(res.status, await res.json().catch(() => ({})), model);
+          const model = await refreshAvailableModels(apiKey, requestedModel);
           toast(`連線成功：${model}`, 'success');
         } catch (error) { toast(`連線失敗：${error.message}`, 'error'); }
       }
@@ -1649,7 +1710,7 @@
         const apiKey = document.getElementById('api-key').value.trim();
         const desc = document.getElementById('description').value.trim();
         const prompt = document.getElementById('prompt-text').value;
-        const model = document.getElementById('model-select').value;
+        let model = document.getElementById('model-select').value;
         const productType = document.getElementById('product-type').value;
         const goals = getSelectedGoals();
         const btn = document.getElementById('gen-btn');
@@ -1658,6 +1719,8 @@
         if (!goals.length) { toast('請至少選擇一個研究目標', 'error'); return; }
         btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 分析內容中…';
         try {
+          btn.innerHTML = '<span class="spinner"></span> 確認此 Key 的可用模型…';
+          model = await refreshAvailableModels(apiKey, model);
           const mediaParts = await prepareMediaParts((current, total, name) => {
             btn.innerHTML = `<span class="spinner"></span> 處理附件 ${current}/${total}：${escapeHtml(name)}`;
           });
@@ -1843,7 +1906,7 @@
       // ══════════════════════════════════════════
       async function refineQuestion() {
         const apiKey = document.getElementById('api-key').value.trim();
-        const model = document.getElementById('model-select').value;
+        let model = document.getElementById('model-select').value;
         const instr = document.getElementById('refine-input').value.trim();
         if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
         if (!instr) { toast('請輸入修改需求', 'error'); return; }
@@ -1866,6 +1929,7 @@
           sysPrompt = `你是資深PM，請根據使用者需求深度修改指定 Kano 題目，題目必須具體情境化。${fieldSpec}。${guideReq}\n需修改的題目：${JSON.stringify(target, null, 2)}\n全部題目列表（供判讀指南參考）：${JSON.stringify(S.genQuestions, null, 2)}\n嚴格回傳 JSON：{"refinedQuestion":{...完整欄位...},"guide":{...}}，不得包含任何其他文字。`;
         }
         try {
+          model = await refreshAvailableModels(apiKey, model);
           const result = await callGemini({
             contents: [{ parts: [{ text: `修改需求：${instr}` }] }],
             systemInstruction: { parts: [{ text: sysPrompt }] },
