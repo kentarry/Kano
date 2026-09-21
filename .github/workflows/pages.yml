@@ -1,0 +1,80 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate and stage the static site
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s index.html
+          grep -q '<title>Kano 模型問卷分析工具</title>' index.html
+          mkdir -p _site
+          cp index.html _site/index.html
+          touch _site/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SITE_URL: ${{ needs.deploy.outputs.page_url }}
+    steps:
+      - name: Verify the deployed page
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..12}; do
+            if body="$(curl --fail --silent --show-error --location "${SITE_URL}?deployment=${GITHUB_SHA}")" \
+              && grep -q '<title>Kano 模型問卷分析工具</title>' <<<"$body"; then
+              echo "Deployment verified: ${SITE_URL}"
+              exit 0
+            fi
+            echo "Site is not ready yet (attempt ${attempt}/12)."
+            sleep 5
+          done
+          echo "Deployment did not pass the live smoke test: ${SITE_URL}" >&2
+          exit 1

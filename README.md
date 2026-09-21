@@ -3,6 +3,19 @@
 > 適用平台：Antigravity.ai（React 環境）
 > 使用語言：繁體中文
 
+線上版：<https://kentarry.github.io/Kano/>
+
+## GitHub Pages 發布
+
+線上版使用根目錄的 `index.html`，不需要 Node.js 建置。`.github/workflows/pages.yml` 會在 `main` 分支的網頁或部署流程變更時：
+
+1. 驗證 `index.html` 存在且內容正確。
+2. 只封裝實際網站檔案，並加入 `.nojekyll`。
+3. 部署到 GitHub Pages。
+4. 從公開網址重新下載頁面，確認不是 404 且標題正確。
+
+需要重新部署時，也可在 GitHub 的 **Actions → Deploy GitHub Pages → Run workflow** 手動執行。若網站顯示 404，先查看該工作流程的 `deploy` 與 `verify` 工作是否成功；這能區分部署失敗與瀏覽器快取／GitHub Pages 短暫傳播延遲。
+
 ---
 
 ## 📁 檔案結構
@@ -100,7 +113,9 @@ src/
 
 1. 前往 [Google AI Studio](https://aistudio.google.com/) 申請 Gemini API Key
 2. 在工具介面「題目產生器」→「Gemini API Key」欄位中輸入
-3. Key 會自動儲存至瀏覽器 `localStorage`，下次開啟無需重新輸入
+3. GitHub Pages 線上版只在目前分頁的記憶體中使用 Key；重新整理或關閉分頁後需再次輸入
+
+請勿把 API Key 寫進 `index.html`、JavaScript、`.env` 或提交到 Git。GitHub Pages 的所有前端檔案都是公開的，無法安全保存私密 Key。
 
 ---
 
