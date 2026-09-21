@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 2,
+  "description": "這是一款休閒遊戲。玩家點擊相同的食物收集到上方訂單區；點到不在當前訂單上的食物會先暫放在盤子。全部收集完成即可過關。",
+  "prompt": "請根據描述與可觀察證據，產生中立、單一概念、可診斷優缺點的 Kano 問卷；不得臆測未出現的商業化或社交功能。",
+  "settings": {
+    "productType": "休閒遊戲",
+    "researchGoals": ["易用性與學習成本", "核心玩法與樂趣", "關卡節奏與難度", "介面與回饋"],
+    "model": ""
+  },
+  "surveyPackage": {
+    "evidenceSummary": {
+      "confirmedFeatures": [
+        "點擊相同食物並收集到上方訂單區",
+        "非當前訂單食物可暫放在五個盤子中",
+        "收集完成後過關並進入下一關",
+        "畫面會顯示收集進度、關卡與暫停按鈕"
+      ],
+      "assumptions": ["後續關卡會增加食物種類與盤面複雜度"],
+      "unknowns": ["失敗條件與盤子放滿後的處理", "道具、廣告、付費與社交機制"]
+    },
+    "experienceQuestions": [
+      {"id":"E1","dimension":"規則理解","question":"我能快速理解應優先點擊哪些食物。","scale":"1=非常不同意，5=非常同意","evidence":"教學畫面與訂單區"},
+      {"id":"E2","dimension":"操作清楚度","question":"點擊食物後，我能清楚知道它被移到哪裡。","scale":"1=非常不同意，5=非常同意","evidence":"訂單區與暫放盤"},
+      {"id":"E3","dimension":"回饋","question":"完成一組收集時，遊戲回饋足以讓我確認進度。","scale":"1=非常不同意，5=非常同意","evidence":"收集進度與 SOLD OUT 狀態"},
+      {"id":"E4","dimension":"策略性","question":"暫放盤讓我需要思考點擊順序。","scale":"1=非常不同意，5=非常同意","evidence":"五個暫放盤與非訂單食物規則"},
+      {"id":"E5","dimension":"節奏","question":"完成一關所需的時間符合休閒遊玩的期待。","scale":"1=非常不同意，5=非常同意","evidence":"關卡制收集流程"},
+      {"id":"E6","dimension":"難度","question":"目前關卡的資訊量讓我能做出判斷而不感到混亂。","scale":"1=非常不同意，5=非常同意","evidence":"第二關同時出現多種食物"},
+      {"id":"E7","dimension":"視覺辨識","question":"不同食物在尺寸與外觀上容易辨認。","scale":"1=非常不同意，5=非常同意","evidence":"盤面中的多種食物圖示"},
+      {"id":"E8","dimension":"持續意願","question":"完成一關後，我願意繼續挑戰下一關。","scale":"1=非常不同意，5=非常同意","evidence":"過關畫面與關卡進度"}
+    ],
+    "behaviorQuestions": [
+      {"id":"B1","question":"第一次遊玩時，你在第幾次操作後理解暫放盤的用途？","options":["一開始就理解","1～3 次","4～6 次","超過 6 次","直到結束仍不理解"],"evidence":"教學與暫放機制"},
+      {"id":"B2","question":"最近一關中，你有幾次誤點非當前訂單食物？","options":["0 次","1～2 次","3～5 次","6 次以上","不確定"],"evidence":"非訂單食物會移到暫放盤"},
+      {"id":"B3","question":"你結束本次遊玩的位置是？","options":["完成第 1 關","完成第 2 關或之後","關卡中主動離開","因為無法繼續而離開"],"evidence":"關卡與過關流程"}
+    ],
+    "openQuestions": [
+      {"id":"O1","question":"哪一個畫面或規則最讓你困惑？請描述當時發生的情況。","purpose":"找出理解障礙與發生情境"},
+      {"id":"O2","question":"哪一段遊玩最讓你感到有趣？為什麼？","purpose":"辨識核心樂趣來源"},
+      {"id":"O3","question":"如果只能改善一件事，你最希望改變什麼？","purpose":"收集玩家自行排序的首要痛點"}
+    ],
+    "questions": [
+      {"id":1,"feature":"明確顯示當前訂單食物","amior":"M","categoryName":"基本屬性","reason":"玩家需要先知道目標才能進行收集。","positive":"如果遊戲會明確顯示當前需要收集的食物，你的感受如何？","negative":"如果遊戲不會明確顯示當前需要收集的食物，你的感受如何？","evidence":"畫面上方的訂單托盤","execution_advice":"保持訂單區固定可見，並強化目前目標。","modification_method":"1. 測試目標圖示辨識率\n2. 比較不同高亮方式的誤點率"},
+      {"id":2,"feature":"非訂單食物可暫放在盤子","amior":"O","categoryName":"期望屬性","reason":"暫放容量直接影響容錯與策略空間。","positive":"如果點到非當前訂單食物時可以先暫放在盤子，你的感受如何？","negative":"如果點到非當前訂單食物時不能先暫放在盤子，你的感受如何？","evidence":"畫面中的五個暫放盤","execution_advice":"觀察暫放盤占用是否清楚，並量測放滿前的決策時間。","modification_method":"1. 記錄暫放次數與放滿率\n2. 測試容量對完成率的影響"},
+      {"id":3,"feature":"完成一組後提供明確回饋","amior":"M","categoryName":"基本屬性","reason":"缺少完成回饋會讓玩家無法確認操作結果。","positive":"如果完成一組收集後會立即提供清楚回饋，你的感受如何？","negative":"如果完成一組收集後不會立即提供清楚回饋，你的感受如何？","evidence":"進度數字與 SOLD OUT 標示","execution_advice":"讓視覺、動態與數字回饋同步出現。","modification_method":"1. 測試回饋辨識時間\n2. 訪談玩家是否理解完成狀態"},
+      {"id":4,"feature":"食物圖示容易辨認","amior":"O","categoryName":"期望屬性","reason":"辨識速度會直接影響誤點率與遊玩流暢度。","positive":"如果不同食物能快速且準確地辨認，你的感受如何？","negative":"如果不同食物不容易快速且準確地辨認，你的感受如何？","evidence":"第二關出現多種顏色與形狀的食物","execution_advice":"避免相近色與相似輪廓同時大量出現。","modification_method":"1. 進行圖示辨識測試\n2. 對照誤點熱區調整造型"},
+      {"id":5,"feature":"關卡逐步增加盤面複雜度","amior":"A","categoryName":"魅力屬性","reason":"平順的難度成長可能提升持續挑戰意願。","positive":"如果後續關卡會逐步增加新的判斷與挑戰，你的感受如何？","negative":"如果後續關卡不會逐步增加新的判斷與挑戰，你的感受如何？","evidence":"第 1 關到第 2 關的食物數量差異","execution_advice":"以完成率與離開率校正每關增加的種類及遮擋量。","modification_method":"1. 建立關卡難度指標\n2. 依玩家分群做 A/B 測試"},
+      {"id":6,"feature":"過關後快速進入下一關","amior":"I","categoryName":"無差異屬性","reason":"轉場速度可能影響節奏，但未必是核心樂趣。","positive":"如果過關後可以快速進入下一關，你的感受如何？","negative":"如果過關後不能快速進入下一關，你的感受如何？","evidence":"恭喜過關畫面與下一關流程","execution_advice":"保留成就回饋，同時提供快速繼續入口。","modification_method":"1. 比較不同轉場秒數的續玩率\n2. 蒐集玩家對過關停留時間的偏好"}
+    ],
+    "guide": {
+      "positive_analysis": [
+        {"response":"我非常喜歡","category":"A 魅力品質","reason":"功能出現時帶來超出預期的正向感受。"},
+        {"response":"我期望如此","category":"O 期望品質","reason":"功能表現越好，滿意度越高。"},
+        {"response":"無所謂","category":"I 無感品質","reason":"功能存在與否對體驗影響有限。"},
+        {"response":"可以接受","category":"M 基本品質","reason":"功能被視為理所當然，存在時不特別加分。"},
+        {"response":"無法接受","category":"R 反向品質","reason":"功能存在可能不符合部分玩家偏好。"}
+      ],
+      "negative_analysis": [
+        {"response":"我非常喜歡","category":"R 反向品質","reason":"玩家偏好功能不存在的狀態。"},
+        {"response":"我期望如此","category":"R 反向品質","reason":"玩家認為移除功能反而更符合期待。"},
+        {"response":"無所謂","category":"A 魅力品質","reason":"功能缺少時不扣分，存在時可能加分。"},
+        {"response":"可以接受","category":"O 期望品質","reason":"功能缺少會降低部分滿意度但仍可接受。"},
+        {"response":"無法接受","category":"M 基本品質","reason":"缺少功能會造成明顯不滿。"}
+      ]
+    }
+  },
+  "timestamp": "2026-09-21T00:00:00.000Z"
+}
