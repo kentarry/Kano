@@ -428,6 +428,84 @@
       padding-bottom: 4px;
     }
 
+    .field-hint {
+      color: var(--text3);
+      font-size: 11px;
+      line-height: 1.5;
+      margin-top: 5px;
+    }
+
+    .goal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .goal-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 9px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface2);
+      color: var(--text2);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .goal-chip input {
+      width: auto;
+      accent-color: var(--accent);
+    }
+
+    .survey-summary {
+      display: none;
+      margin-bottom: 16px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #f8fafc;
+    }
+
+    .survey-summary.show {
+      display: block;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .summary-block {
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .summary-block h4 {
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .summary-block ul {
+      padding-left: 18px;
+      color: var(--text2);
+      font-size: 12px;
+    }
+
+    .quality-warning {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-left: 3px solid #f59e0b;
+      background: #fffbeb;
+      color: #92400e;
+      font-size: 12px;
+    }
+
     .file-thumb {
       position: relative;
       width: 80px;
@@ -960,7 +1038,9 @@
       }
 
       .guide-grid,
-      .q-table-grid {
+      .q-table-grid,
+      .summary-grid,
+      .goal-grid {
         grid-template-columns: 1fr;
       }
 
@@ -1025,8 +1105,43 @@
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label>🔑 Gemini API Key <span style="color:var(--red);float:right;">* 必填</span></label>
-              <input type="password" id="api-key" placeholder="請輸入 Google Gemini API Key"
-                oninput="saveApiKey(this.value)">
+              <div style="display:flex;gap:8px;">
+                <input type="password" id="api-key" placeholder="請輸入 Google Gemini API Key"
+                  oninput="saveApiKey(this.value)" style="flex:1;">
+                <button class="btn btn-sm" type="button" onclick="testApiConnection()">測試連線</button>
+              </div>
+              <div class="field-hint">Key 只保留在目前分頁，不會寫入專案檔或瀏覽器儲存空間。</div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label>產品類型</label>
+              <select id="product-type">
+                <option value="game">遊戲</option>
+                <option value="app">App／數位工具</option>
+                <option value="ecommerce">電商／購物流程</option>
+                <option value="service">服務／訂閱產品</option>
+                <option value="backend">後台／企業系統</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label>研究目標（可複選）</label>
+              <div class="goal-grid" id="research-goals">
+                <label class="goal-chip"><input type="checkbox" value="理解與教學" checked>理解與教學</label>
+                <label class="goal-chip"><input type="checkbox" value="操作與易用性" checked>操作與易用性</label>
+                <label class="goal-chip"><input type="checkbox" value="核心價值與樂趣" checked>核心價值／樂趣</label>
+                <label class="goal-chip"><input type="checkbox" value="難度與流程">難度與流程</label>
+                <label class="goal-chip"><input type="checkbox" value="回饋與滿意度">回饋與滿意度</label>
+                <label class="goal-chip"><input type="checkbox" value="留存與推薦意願">留存／推薦意願</label>
+                <label class="goal-chip"><input type="checkbox" value="商業化接受度">商業化接受度</label>
+                <label class="goal-chip"><input type="checkbox" value="功能優先順序">功能優先順序</label>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label>AI 模型</label>
+              <select id="model-select">
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash（品質優先）</option>
+                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite（額度／速度優先）</option>
+              </select>
             </div>
             <div class="form-group" style="margin-bottom:0;flex:1;display:flex;flex-direction:column;">
               <label>定義提詞（Prompt）</label>
@@ -1048,6 +1163,7 @@
             <div id="gen-export-btns" style="display:none;gap:8px;flex-wrap:wrap;"></div>
           </div>
           <div id="amior-bar" class="amior-bar" style="display:none;"></div>
+          <div id="survey-package-summary" class="survey-summary"></div>
           <div id="questions-list">
             <div class="empty-state">
               <div class="empty-icon">🔍</div>
@@ -1235,64 +1351,76 @@
         ]
       };
 
-      // ★ 更新 System Prompt：要求 AI 深度分析、具體情境化，並確保 reason 完整
-      const SYSTEM_PROMPT = `# Role Definition
-你是一位講話直白、重視落地執行的資深產品經理 (PM)。你討厭空泛的理論，擅長給出「明天就能執行」的具體建議。
+      const SYSTEM_PROMPT = `# 角色
+你是嚴謹的產品研究員與問卷設計師。你的任務不是猜測產品功能，而是根據使用者描述與附件中可觀察的證據，產生可診斷產品優缺點的公版問卷。
 
-# 核心任務
-使用者將提供產品描述或素材圖片。請完成：
-1. **題目設計**：根據產品的核心功能、使用情境、目標用戶，設計 10 組有深度的 Kano 問卷題目。
-   - ❌ 禁止：「如果系統提供 A 功能，您感受如何？」（太籠統）
-   - ✅ 要求：針對具體使用場景提問，例如：「當您在夜間騎車時，APP 自動切換深色模式並降低亮度，讓您眼睛不刺痛，您覺得如何？」
-2. **策略顧問**：針對每一題，根據其功能特性，預先撰寫「執行建議」與「修改方式」。
-3. **判讀指南（AMIOR）**：根據生成的 10 組題目，撰寫「專屬情境判讀指南」。
-   - ⚠️ 每個 reason 欄位**必須**說明「為什麼選這個屬性」，例如：「因為這是行動支付的基本安全要求，缺少此功能用戶根本不敢使用，屬於基本門檻」。
-   - ⚠️ **禁止**出現 "A/O" 或 "M/R" 這類模糊寫法，category 必須明確單一。
-   - ⚠️ reason **不能**是通用說明，必須結合題目情境，至少 15 字以上的具體說明。
+# 事實與品質規則
+1. 先區分「已確認事實、合理推測、資訊不足」。未在描述或素材中出現的功能，不得直接寫成現況題目。
+2. 商業化、廣告、付費、帳號、社交等內容，只有在素材或描述明確出現，或研究目標明確要求時才能詢問；否則列入 unknowns，不可臆測。
+3. 每題只測量一個概念，使用中性、不帶答案暗示的文字。禁止使用「超棒、震撼、很差、完全不想玩、非常棒」等引導詞。
+4. Kano 正向題與反向題必須描述同一功能的有／無，不能在反向題額外加入挫折、卸載等後果。
+5. 受測者題目中不得顯示 AI 預測的 A/O/M/I/R 分類。分類僅供研究後台參考。
+6. 題目應能協助判斷：目前表現、問題原因、功能重要性、改善優先順序。
 
-# 寫作風格
-1. **白話文**：像同事在討論，不要用教科書語氣。
-2. **拒絕廢話**：要說「把讀取時間壓在 2 秒內，不然玩家會直接關掉」。
-3. **情境化**：每個問題必須有明確的使用場景。
-4. **具體行動**：例如「將確認按鈕加大 20% 並改為橘色 (#FF5722)，防止誤觸」。
+# 問卷組合
+- 6 組 Kano 正反向題：用於功能屬性與優先級。
+- 8 題體驗評分題：使用 1～5 分量表，涵蓋所選研究目標。
+- 3 題行為題：詢問實際發生次數、完成狀態或使用情境。
+- 3 題開放題：找出困惑、最大痛點與最有價值之處。
+- 每一題都要標示 evidence，說明它根據哪個已確認事實產生。
 
-# Output JSON Structure (Strict)
-請務必只回傳以下 JSON 格式，不要包含 Markdown 語法或任何其他文字：
+# 輸出
+只回傳 JSON，不要 Markdown 或其他文字：
 {
+  "evidenceSummary": {
+    "confirmedFeatures": ["從描述或附件確認的功能"],
+    "assumptions": ["仍需人工確認的合理推測"],
+    "unknowns": ["素材不足、不可直接出題的資訊"]
+  },
+  "experienceQuestions": [
+    {"id":"E1","dimension":"易用性","question":"中性、單一概念的評分題","scale":"1=非常不同意，5=非常同意","evidence":"題目依據"}
+  ],
+  "behaviorQuestions": [
+    {"id":"B1","question":"實際行為題","options":["選項1","選項2"],"evidence":"題目依據"}
+  ],
+  "openQuestions": [
+    {"id":"O1","question":"開放題","purpose":"此題要找出的問題"}
+  ],
   "questions": [
     {
-      "id": 1,
-      "feature": "功能簡述（5字以內）",
-      "amior": "A",
-      "categoryName": "魅力屬性",
-      "reason": "屬性判斷理由（必須結合功能情境，說明為何是此屬性，至少15字）",
-      "positive": "具體情境正向問句（須包含使用場景）",
-      "negative": "具體情境反向問句（須包含使用場景）",
-      "execution_advice": "白話具體建議（針對此功能的情境，禁止通用建議）",
-      "modification_method": "具體執行步驟\\n1. 第一步（含技術或設計細節）\\n2. 第二步"
+      "id":1,
+      "feature":"功能簡述",
+      "amior":"A",
+      "categoryName":"魅力屬性",
+      "reason":"後台預測理由，不可當成受測者答案",
+      "positive":"具備此功能時的中性問句",
+      "negative":"不具備同一功能時的中性問句",
+      "evidence":"題目依據",
+      "execution_advice":"根據情境提出的具體建議",
+      "modification_method":"1. 具體步驟\\n2. 驗證方式"
     }
   ],
   "guide": {
     "positive_analysis": [
-       { "response": "我非常喜歡", "category": "A 魅力品質", "reason": "結合題目情境的具體理由，說明為何對應此屬性（至少15字）" },
-       { "response": "我期望如此", "category": "O 期望品質", "reason": "結合題目情境的具體理由（至少15字）" },
-       { "response": "無所謂", "category": "I 無感品質", "reason": "結合題目情境的具體理由（至少15字）" },
-       { "response": "可以接受", "category": "M 基本品質", "reason": "結合題目情境的具體理由（至少15字）" },
-       { "response": "無法接受", "category": "R 反向品質", "reason": "結合題目情境的具體理由（至少15字）" }
+      {"response":"我非常喜歡","category":"A 魅力品質","reason":"情境化理由"},
+      {"response":"我期望如此","category":"O 期望品質","reason":"情境化理由"},
+      {"response":"無所謂","category":"I 無感品質","reason":"情境化理由"},
+      {"response":"可以接受","category":"M 基本品質","reason":"情境化理由"},
+      {"response":"無法接受","category":"R 反向品質","reason":"情境化理由"}
     ],
     "negative_analysis": [
-       { "response": "我非常喜歡", "category": "R 反向品質", "reason": "結合題目情境的具體理由（至少15字）" },
-       { "response": "我期望如此", "category": "R 反向品質", "reason": "結合題目情境的具體理由（至少15字）" },
-       { "response": "無所謂", "category": "A 魅力品質", "reason": "結合題目情境的具體理由（至少15字）" },
-       { "response": "可以接受", "category": "O 期望品質", "reason": "結合題目情境的具體理由（至少15字）" },
-       { "response": "無法接受", "category": "M 基本品質", "reason": "結合題目情境的具體理由（至少15字）" }
+      {"response":"我非常喜歡","category":"R 反向品質","reason":"情境化理由"},
+      {"response":"我期望如此","category":"R 反向品質","reason":"情境化理由"},
+      {"response":"無所謂","category":"A 魅力品質","reason":"情境化理由"},
+      {"response":"可以接受","category":"O 期望品質","reason":"情境化理由"},
+      {"response":"無法接受","category":"M 基本品質","reason":"情境化理由"}
     ]
   }
 }`;
 
       // ══════ 狀態 ══════
       const S = {
-        genQuestions: [], genGuide: null, files: [],
+        genQuestions: [], genGuide: null, files: [], surveyPackage: null,
         data: { meta: { totalRespondents: 0, analysisDate: new Date().toISOString().split('T')[0] }, items: [] },
         refineTarget: '1',
         scatterChart: null,
@@ -1327,68 +1455,172 @@
       }
       function saveApiKey(v) { /* API Key 不儲存，每次手動輸入 */ }
 
+      const MAX_FILES = 12;
+      const MAX_VIDEO_PAYLOAD_BYTES = 14 * 1024 * 1024;
+      const MAX_IMAGE_PAYLOAD_BYTES = 70 * 1024 * 1024;
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>'"]/g, ch => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        })[ch]);
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+      }
+
+      function getSelectedGoals() {
+        return [...document.querySelectorAll('#research-goals input:checked')].map(el => el.value);
+      }
+
       // ══════ Toast ══════
       function toast(msg, type = 'info') {
         const el = document.createElement('div');
         el.className = `toast ${type}`;
-        el.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span><span style="flex:1">${msg}</span>`;
+        el.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span><span style="flex:1">${escapeHtml(msg)}</span>`;
         document.getElementById('toast-container').appendChild(el);
-        setTimeout(() => el.remove(), 4000);
+        setTimeout(() => el.remove(), type === 'error' ? 10000 : 5000);
       }
 
       // ══════ 素材上傳 ══════
       function handleFileInput(input) {
-        const nf = Array.from(input.files).map(f => ({ id: Math.random().toString(36).substr(2, 9), file: f, url: URL.createObjectURL(f), type: f.type.startsWith('video') ? 'video' : 'image' }));
+        const incoming = Array.from(input.files || []);
+        const rejected = [];
+        const accepted = incoming.filter(file => {
+          const supported = file.type.startsWith('image/') || file.type.startsWith('video/');
+          if (!supported) rejected.push(`${file.name}：不支援的格式`);
+          return supported;
+        });
+        const remaining = Math.max(0, MAX_FILES - S.files.length);
+        if (accepted.length > remaining) rejected.push(`一次最多 ${MAX_FILES} 個檔案，超出的檔案未加入`);
+        const nf = accepted.slice(0, remaining).map(f => ({
+          id: Math.random().toString(36).slice(2, 11), file: f,
+          url: URL.createObjectURL(f), type: f.type.startsWith('video/') ? 'video' : 'image'
+        }));
         S.files = [...S.files, ...nf]; renderFilePreviews(); input.value = '';
+        if (rejected.length) toast(rejected.join('；'), 'error');
       }
       function renderFilePreviews() {
         const w = document.getElementById('file-previews');
-        w.innerHTML = S.files.map(f => `<div class="file-thumb">${f.type === 'video' ? `<video src="${f.url}"></video>` : `<img src="${f.url}">`}<button class="file-del" onclick="removeFile('${f.id}')">✕</button></div>`).join('');
+        const total = S.files.reduce((sum, item) => sum + item.file.size, 0);
+        w.innerHTML = S.files.map(f => `<div class="file-thumb" title="${escapeHtml(f.file.name)}｜${formatBytes(f.file.size)}">${f.type === 'video' ? `<video src="${f.url}"></video>` : `<img src="${f.url}" alt="${escapeHtml(f.file.name)}">`}<button class="file-del" onclick="removeFile('${f.id}')">✕</button></div>`).join('') +
+          (S.files.length ? `<div class="field-hint" style="align-self:center;min-width:120px;">${S.files.length} 個檔案<br>原始大小 ${formatBytes(total)}</div>` : '');
       }
-      function removeFile(id) { S.files = S.files.filter(f => f.id !== id); renderFilePreviews(); }
+      function removeFile(id) {
+        const target = S.files.find(f => f.id === id);
+        if (target) URL.revokeObjectURL(target.url);
+        S.files = S.files.filter(f => f.id !== id); renderFilePreviews();
+      }
       function fileToBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; }); }
 
+      function compressImage(file) {
+        return new Promise((resolve, reject) => {
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.max(1, Math.round(img.width * scale));
+              canvas.height = Math.max(1, Math.round(img.height * scale));
+              canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob(blob => {
+                URL.revokeObjectURL(url);
+                if (!blob) reject(new Error(`${file.name} 圖片壓縮失敗`));
+                else resolve(blob.size < file.size ? blob : file);
+              }, 'image/jpeg', 0.82);
+            } catch (error) { URL.revokeObjectURL(url); reject(error); }
+          };
+          img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`${file.name} 無法讀取`)); };
+          img.src = url;
+        });
+      }
+
+      async function prepareMediaParts(onProgress) {
+        const hasVideo = S.files.some(item => item.type === 'video');
+        const limit = hasVideo ? MAX_VIDEO_PAYLOAD_BYTES : MAX_IMAGE_PAYLOAD_BYTES;
+        const parts = [];
+        let total = 0;
+        for (let i = 0; i < S.files.length; i++) {
+          const item = S.files[i];
+          onProgress?.(i + 1, S.files.length, item.file.name);
+          const prepared = item.type === 'image' ? await compressImage(item.file) : item.file;
+          total += prepared.size;
+          if (total > limit) {
+            const hint = hasVideo ? '請縮短影片、降低解析度，或只保留重要截圖。' : '請減少圖片數量。';
+            throw new Error(`附件處理後為 ${formatBytes(total)}，安全上限為 ${formatBytes(limit)}。${hint}`);
+          }
+          parts.push({ inlineData: { mimeType: prepared.type || item.file.type, data: await fileToBase64(prepared) } });
+        }
+        return parts;
+      }
+
       // ══════ Gemini API ══════
-      async function callGemini(payload, apiKey) {
+      function readableApiError(status, body, model) {
+        const message = body?.error?.message || `HTTP ${status}`;
+        const reason = body?.error?.details?.find(d => d.reason)?.reason || '';
+        if (/leaked/i.test(message)) return new Error('此 API Key 已被 Google 判定外洩並停用，請到 Google AI Studio 建立新 Key。');
+        if (reason === 'API_KEY_INVALID' || /API key not valid/i.test(message)) return new Error('API Key 無效，請確認沒有多貼空白，並使用正確專案的 Gemini API Key。');
+        if (status === 400 && /FAILED_PRECONDITION|billing|country|region/i.test(`${reason} ${message}`)) return new Error('此專案目前無法使用 Gemini API，請在 Google AI Studio 檢查地區與付費設定。');
+        if (status === 400) return new Error(`請求內容不被接受，常見原因是素材過大或格式不支援。Google 回覆：${message}`);
+        if (status === 402) return new Error('API 預付額度已用完，請補充額度或開啟自動儲值後再試。');
+        if (status === 401 || status === 403) return new Error('API Key 沒有此模型的權限，或 Key 的網站／API 限制阻擋了此頁面。請檢查 Google Cloud Key 限制。');
+        if (status === 404) return new Error(`找不到模型 ${model}，請改選另一個模型後重試。`);
+        if (status === 429) return new Error('API 的每分鐘、每日或花費額度已達上限。請稍後重試，或改用 Flash-Lite。');
+        if (status >= 500) return new Error(`Gemini 服務暫時異常（${status}），請稍後重試。`);
+        return new Error(`Gemini API 錯誤（${status}）：${message}`);
+      }
+
+      async function callGemini(payload, apiKey, model) {
         if (!apiKey || !apiKey.trim()) throw new Error('請先輸入有效的 Gemini API Key。');
-        // 退避等待時間：1s, 5s, 15s, 35s, 65s
-        const delays = [1000, 5000, 15000, 35000, 65000];
+        const delays = [1000, 3000, 8000];
         let lastError = null;
-        for (let i = 0; i < delays.length; i++) {
+        for (let i = 0; i <= delays.length; i++) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 120000);
           try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey.trim() },
+              body: JSON.stringify(payload),
+              signal: controller.signal
             });
+            clearTimeout(timeout);
             if (res.ok) return await res.json();
             const errBody = await res.json().catch(() => ({}));
-            const msg = errBody?.error?.message || `狀態碼 ${res.status}`;
-            // 401/403：Key 錯誤，不重試
-            if (res.status === 401 || res.status === 403) throw new Error(`API 金鑰錯誤: ${msg}`);
-            // 429：配額超限，自動等待後重試（從錯誤訊息萃取等待秒數）
-            if (res.status === 429) {
-              const waitMatch = msg.match(/retry in ([\d.]+)s/i);
-              const waitSec = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) : delays[i];
-              if (i < delays.length - 1) {
-                toast(`API 使用量已達上限，${Math.ceil(waitSec / 1000)} 秒後自動重試…`, 'info');
-                await new Promise(r => setTimeout(r, waitSec));
-                continue;
-              }
-              throw new Error(`API 請求過於頻繁，請等待約 ${Math.ceil(waitSec / 1000)} 秒後再試`);
-            }
-            // 400 其他：Bad Request，不重試
-            if (res.status === 400) throw new Error(`API 請求格式錯誤: ${msg}`);
-            // 其他 4xx/5xx：等待後重試
-            lastError = new Error(`伺服器暫時無回應 (${res.status}): ${msg}`);
+            const retryable = res.status === 408 || res.status === 429 || res.status >= 500;
+            lastError = readableApiError(res.status, errBody, model);
+            if (!retryable || i === delays.length) throw lastError;
           } catch (e) {
-            // 不重試的錯誤直接拋出
-            if (e.message.startsWith('API 金鑰錯誤') || e.message.startsWith('API 請求格式錯誤')) throw e;
-            lastError = e;
+            clearTimeout(timeout);
+            if (e.name === 'AbortError') lastError = new Error('請求超過 120 秒，通常是影片過長或服務忙碌。請減少素材後重試。');
+            else if (e instanceof TypeError) lastError = new Error('瀏覽器無法連到 Gemini API，請檢查網路、公司防火牆或瀏覽器擴充功能。');
+            else lastError = e;
+            const retryableMessage = /暫時|額度|超過 120 秒|無法連到/.test(lastError.message);
+            if (!retryableMessage || i === delays.length) throw lastError;
           }
-          if (i < delays.length - 1) {
-            await new Promise(r => setTimeout(r, delays[i]));
+          if (i < delays.length) {
+            const wait = delays[i] + Math.floor(Math.random() * 500);
+            toast(`連線暫時失敗，${Math.ceil(wait / 1000)} 秒後自動重試…`, 'info');
+            await new Promise(r => setTimeout(r, wait));
           }
         }
         throw lastError || new Error('無法連線至 AI 伺服器，請確認網路狀態或稍後再試。');
+      }
+
+      async function testApiConnection() {
+        const apiKey = document.getElementById('api-key').value.trim();
+        const model = document.getElementById('model-select').value;
+        if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}`, {
+            headers: { 'x-goog-api-key': apiKey }
+          });
+          if (!res.ok) throw readableApiError(res.status, await res.json().catch(() => ({})), model);
+          toast(`連線成功：${model}`, 'success');
+        } catch (error) { toast(`連線失敗：${error.message}`, 'error'); }
       }
       function parseAIJson(text) {
         let clean = text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
@@ -1417,30 +1649,43 @@
         const apiKey = document.getElementById('api-key').value.trim();
         const desc = document.getElementById('description').value.trim();
         const prompt = document.getElementById('prompt-text').value;
+        const model = document.getElementById('model-select').value;
+        const productType = document.getElementById('product-type').value;
+        const goals = getSelectedGoals();
         const btn = document.getElementById('gen-btn');
         if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
         if (!desc && !S.files.length) { toast('請輸入描述或上傳素材', 'error'); return; }
+        if (!goals.length) { toast('請至少選擇一個研究目標', 'error'); return; }
         btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 分析內容中…';
         try {
-          let payload;
-          if (S.files.length > 0) {
-            const parts = [{ text: `[System Instruction]\n${prompt}\n\n[User Request]\n${desc || '請根據提供的圖片/影片，深入分析產品功能後生成題目。'}` }];
-            for (const f of S.files) { try { parts.push({ inlineData: { mimeType: f.file.type, data: await fileToBase64(f.file) } }); } catch { } }
-            payload = { contents: [{ role: 'user', parts }] };
-          } else {
-            payload = { contents: [{ parts: [{ text: desc }] }], systemInstruction: { parts: [{ text: prompt }] } };
+          const mediaParts = await prepareMediaParts((current, total, name) => {
+            btn.innerHTML = `<span class="spinner"></span> 處理附件 ${current}/${total}：${escapeHtml(name)}`;
+          });
+          const context = `產品類型：${productType}\n研究目標：${goals.join('、')}\n產品描述：${desc || '未提供，請只根據附件中可確認的內容分析。'}\n請先整理證據，再生成完整混合問卷。`;
+          const payload = {
+            contents: [{ role: 'user', parts: [{ text: context }, ...mediaParts] }],
+            systemInstruction: { parts: [{ text: prompt }] },
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.35 }
+          };
+          btn.innerHTML = '<span class="spinner"></span> AI 分析與設計問卷中…';
+          const result = await callGemini(payload, apiKey, model);
+          const candidate = result.candidates?.[0];
+          const text = candidate?.content?.parts?.map(part => part.text || '').join('').trim();
+          if (!text) {
+            const reason = result.promptFeedback?.blockReason || candidate?.finishReason || 'UNKNOWN';
+            throw new Error(`AI 沒有回傳可用內容（${reason}）。請移除可能觸發安全限制的素材或改寫描述。`);
           }
-          const result = await callGemini(payload, apiKey);
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!text) throw new Error('AI 未回傳文字');
           const parsed = parseAIJson(text);
           let qs = [], guide = null;
           if (Array.isArray(parsed)) qs = parsed;
           else if (parsed.questions) { qs = parsed.questions; guide = parsed.guide; }
+          if (!Array.isArray(qs) || qs.length === 0) throw new Error('AI 回傳內容缺少 Kano questions 陣列，請重試。');
+          S.surveyPackage = Array.isArray(parsed) ? { questions: parsed } : parsed;
           S.genQuestions = qs; S.genGuide = guide;
           renderGeneratorResults();
-          toast(`成功生成 ${qs.length} 組題目！`, 'success');
-        } catch (e) { toast(`生成失敗：${e.message}`, 'error'); }
+          const extraCount = (parsed.experienceQuestions?.length || 0) + (parsed.behaviorQuestions?.length || 0) + (parsed.openQuestions?.length || 0);
+          toast(`成功生成 ${qs.length} 組 Kano 題目與 ${extraCount} 題體驗診斷題！`, 'success');
+        } catch (e) { toast(`生成失敗：${e.message}`, 'error'); console.error(e); }
         finally { btn.disabled = false; btn.innerHTML = '⚡ 根據內容生成題目'; }
       }
 
@@ -1452,6 +1697,58 @@
         wrap.innerHTML = `<button class="btn btn-sm btn-green" onclick="exportExcel()">📊 匯出 Excel</button>
     <button class="btn btn-sm btn-purple" onclick="exportWord()">📄 匯出 Word (Forms)</button>
     <button class="btn btn-sm btn-blue" onclick="showScreenshot()">👁 題目總覽截圖</button>`;
+      }
+
+      function auditSurveyPackage(pkg) {
+        if (!pkg) return [];
+        const warnings = [];
+        const kano = Array.isArray(pkg.questions) ? pkg.questions : [];
+        const experience = Array.isArray(pkg.experienceQuestions) ? pkg.experienceQuestions : [];
+        const behavior = Array.isArray(pkg.behaviorQuestions) ? pkg.behaviorQuestions : [];
+        const open = Array.isArray(pkg.openQuestions) ? pkg.openQuestions : [];
+        if (experience.length < 6) warnings.push(`體驗評分題只有 ${experience.length} 題，建議至少 6 題。`);
+        if (behavior.length < 2) warnings.push(`行為題只有 ${behavior.length} 題，較難對照玩家實際操作。`);
+        if (open.length < 2) warnings.push(`開放題只有 ${open.length} 題，可能漏掉未預期問題。`);
+        const leading = /超棒|震撼|很差|極差|完全不想|非常棒|一定會|肯定/;
+        kano.forEach((q, index) => {
+          if (leading.test(`${q.positive || ''} ${q.negative || ''}`)) warnings.push(`Kano 題組 ${index + 1} 含引導性用語。`);
+          if (!q.evidence) warnings.push(`Kano 題組 ${index + 1} 缺少 evidence 來源。`);
+          if ((q.positive || '').length > 90 || (q.negative || '').length > 90) warnings.push(`Kano 題組 ${index + 1} 過長，建議縮短。`);
+        });
+        experience.forEach((q, index) => {
+          if (leading.test(q.question || '')) warnings.push(`體驗題 ${index + 1} 含引導性用語。`);
+          if (!q.evidence) warnings.push(`體驗題 ${index + 1} 缺少 evidence 來源。`);
+        });
+        const features = kano.map(q => String(q.feature || '').trim()).filter(Boolean);
+        if (new Set(features).size !== features.length) warnings.push('部分 Kano 題組測量了重複功能，建議合併。');
+        return [...new Set(warnings)].slice(0, 12);
+      }
+
+      function renderSurveyPackageSummary() {
+        const wrap = document.getElementById('survey-package-summary');
+        const pkg = S.surveyPackage;
+        if (!pkg || Array.isArray(pkg)) { wrap.classList.remove('show'); wrap.innerHTML = ''; return; }
+        const evidence = pkg.evidenceSummary || {};
+        const list = values => Array.isArray(values) && values.length
+          ? `<ul>${values.map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>`
+          : '<div class="field-hint">無</div>';
+        const questionList = (items, label) => Array.isArray(items) && items.length
+          ? `<div class="summary-block"><h4>${escapeHtml(label)}（${items.length}）</h4><ul>${items.map(item => `<li><strong>${escapeHtml(item.id || '')}</strong> ${escapeHtml(item.question || '')}</li>`).join('')}</ul></div>`
+          : '';
+        const warnings = auditSurveyPackage(pkg);
+        wrap.innerHTML = `
+          <div style="font-weight:800;">🔎 產品理解與問卷品質檢查</div>
+          <div class="summary-grid">
+            <div class="summary-block"><h4>已確認功能</h4>${list(evidence.confirmedFeatures)}</div>
+            <div class="summary-block"><h4>需人工確認的推測</h4>${list(evidence.assumptions)}</div>
+            <div class="summary-block"><h4>資訊不足／不應直接出題</h4>${list(evidence.unknowns)}</div>
+            <div class="summary-block"><h4>自動品質檢查</h4>${warnings.length ? `<ul>${warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>` : '<div style="color:var(--green);font-size:12px;">未發現明顯問題</div>'}</div>
+            ${questionList(pkg.experienceQuestions, '體驗評分題')}
+            ${questionList(pkg.behaviorQuestions, '行為題')}
+            ${questionList(pkg.openQuestions, '開放題')}
+          </div>
+          ${Array.isArray(evidence.assumptions) && evidence.assumptions.length ? '<div class="quality-warning">推測內容不會自動視為產品現況。正式發放問卷前，請先確認或刪除相關題目。</div>' : ''}`;
+        wrap.classList.add('show');
       }
 
       function renderGeneratorResults() {
@@ -1468,22 +1765,23 @@
           ).join('');
         // 題目卡片
         document.getElementById('questions-list').innerHTML = qs.flatMap((q, idx) => [
-          { ...q, type: 'pos', label: '正向題', text: q.positive, seq: idx * 2 + 1, groupID: String(q.id) },
-          { ...q, type: 'neg', label: '反向題', text: q.negative, seq: idx * 2 + 2, groupID: String(q.id) }
+          { ...q, type: 'pos', label: '正向題', text: q.positive, seq: idx * 2 + 1, groupID: String(q.id ?? idx + 1).replace(/[^a-zA-Z0-9_-]/g, '') || String(idx + 1) },
+          { ...q, type: 'neg', label: '反向題', text: q.negative, seq: idx * 2 + 2, groupID: String(q.id ?? idx + 1).replace(/[^a-zA-Z0-9_-]/g, '') || String(idx + 1) }
         ]).map(item => `
     <div class="q-card ${S.refineTarget === item.groupID ? 'selected' : ''}" onclick="selectRefine('${item.groupID}')">
       <div class="q-card-head">
         <span class="badge" style="background:#1e293b;color:#fff;">Q${item.seq}</span>
         <span class="badge ${item.type === 'pos' ? 'badge-pos' : 'badge-neg'}">${item.label}</span>
       </div>
-      <div class="q-card-text">${String(item.text || '')}</div>
+      <div class="q-card-text">${escapeHtml(item.text || '')}</div>
       <div class="q-card-reason">
-        <span style="font-weight:700;color:var(--accent);">${String(item.amior || '?')}</span>
-        <span style="font-weight:600;color:var(--text);">（${String(item.categoryName || '')}）</span>：${String(item.reason || '')}
+        <span style="font-weight:700;color:var(--accent);">${escapeHtml(item.amior || '?')}</span>
+        <span style="font-weight:600;color:var(--text);">（${escapeHtml(item.categoryName || '')}）</span>：${escapeHtml(item.reason || '')}
       </div>
     </div>`).join('');
         document.getElementById('refine-bar').style.display = 'flex';
         updateRefineBadge();
+        renderSurveyPackageSummary();
         renderGuide();
         renderGenExportBtns();
       }
@@ -1520,20 +1818,20 @@
           <h4>正向題反應分析</h4>
           ${guide.positive_analysis.map(r => `
             <div class="guide-row">
-              <span class="resp">${String(r.response || '')}</span>
+              <span class="resp">${escapeHtml(r.response || '')}</span>
               <span class="arrow">→</span>
-              <span class="cat">（${safeCatCode(r.category)}）</span>
-              <span class="guide-reason">${String(r.reason || '').replace(/^理由[：:]\s*/, '')}</span>
+              <span class="cat">（${escapeHtml(safeCatCode(r.category))}）</span>
+              <span class="guide-reason">${escapeHtml(String(r.reason || '').replace(/^理由[：:]\s*/, ''))}</span>
             </div>`).join('')}
         </div>
         <div class="guide-col">
           <h4>反向題反應分析</h4>
           ${guide.negative_analysis.map(r => `
             <div class="guide-row">
-              <span class="resp">${String(r.response || '')}</span>
+              <span class="resp">${escapeHtml(r.response || '')}</span>
               <span class="arrow">→</span>
-              <span class="cat">（${safeCatCode(r.category)}）</span>
-              <span class="guide-reason">${String(r.reason || '').replace(/^理由[：:]\s*/, '')}</span>
+              <span class="cat">（${escapeHtml(safeCatCode(r.category))}）</span>
+              <span class="guide-reason">${escapeHtml(String(r.reason || '').replace(/^理由[：:]\s*/, ''))}</span>
             </div>`).join('')}
         </div>
       </div>
@@ -1545,6 +1843,7 @@
       // ══════════════════════════════════════════
       async function refineQuestion() {
         const apiKey = document.getElementById('api-key').value.trim();
+        const model = document.getElementById('model-select').value;
         const instr = document.getElementById('refine-input').value.trim();
         if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
         if (!instr) { toast('請輸入修改需求', 'error'); return; }
@@ -1567,8 +1866,12 @@
           sysPrompt = `你是資深PM，請根據使用者需求深度修改指定 Kano 題目，題目必須具體情境化。${fieldSpec}。${guideReq}\n需修改的題目：${JSON.stringify(target, null, 2)}\n全部題目列表（供判讀指南參考）：${JSON.stringify(S.genQuestions, null, 2)}\n嚴格回傳 JSON：{"refinedQuestion":{...完整欄位...},"guide":{...}}，不得包含任何其他文字。`;
         }
         try {
-          const result = await callGemini({ contents: [{ parts: [{ text: `修改需求：${instr}` }] }], systemInstruction: { parts: [{ text: sysPrompt }] } }, apiKey);
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          const result = await callGemini({
+            contents: [{ parts: [{ text: `修改需求：${instr}` }] }],
+            systemInstruction: { parts: [{ text: sysPrompt }] },
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.3 }
+          }, apiKey, model);
+          const text = result.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
           if (!text) throw new Error('AI 未回傳文字');
           const parsed = parseAIJson(text);
 
@@ -1587,6 +1890,7 @@
             S.genQuestions = parsed.questions;
             // 只要 AI 有回傳 guide 就更新，否則保留現有
             if (newGuide) S.genGuide = newGuide;
+            S.surveyPackage = { ...(S.surveyPackage || {}), questions: S.genQuestions, guide: S.genGuide };
             renderGeneratorResults();
             // 強制重新渲染判讀指南（確保顯示最新）
             renderGuide();
@@ -1609,6 +1913,7 @@
 
             // 只要 AI 有回傳 guide 就更新
             if (newGuide) S.genGuide = newGuide;
+            S.surveyPackage = { ...(S.surveyPackage || {}), questions: S.genQuestions, guide: S.genGuide };
 
             renderGeneratorResults();
             // 強制重新渲染判讀指南
@@ -1627,9 +1932,24 @@
 
       // ══════ 專案 ══════
       function saveProject() {
-        const d = { description: document.getElementById('description').value, prompt: document.getElementById('prompt-text').value, generatedQuestions: S.genQuestions, generatedGuide: S.genGuide, timestamp: new Date().toISOString() };
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' }));
+        const d = {
+          schemaVersion: 2,
+          description: document.getElementById('description').value,
+          prompt: document.getElementById('prompt-text').value,
+          settings: {
+            productType: document.getElementById('product-type').value,
+            researchGoals: getSelectedGoals(),
+            model: document.getElementById('model-select').value
+          },
+          surveyPackage: S.surveyPackage,
+          generatedQuestions: S.genQuestions,
+          generatedGuide: S.genGuide,
+          timestamp: new Date().toISOString()
+        };
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' }));
         a.download = `Kano_Project_${new Date().toISOString().split('T')[0]}.json`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         toast('專案儲存成功', 'success');
       }
       function loadProject(input) {
@@ -1638,12 +1958,31 @@
         r.onload = e => {
           try {
             const d = JSON.parse(e.target.result);
+            if (!d || typeof d !== 'object') throw new Error('專案內容不是物件');
             if (d.description) document.getElementById('description').value = d.description;
-            if (d.prompt) document.getElementById('prompt-text').value = d.prompt;
-            S.genQuestions = d.generatedQuestions || []; S.genGuide = d.generatedGuide || null;
+            // Schema v1 projects contain the legacy public-template prompt. Keeping it
+            // would silently bypass the evidence and questionnaire-quality safeguards.
+            document.getElementById('prompt-text').value = d.schemaVersion >= 2 && d.prompt
+              ? d.prompt
+              : SYSTEM_PROMPT;
+            if (d.settings?.productType) document.getElementById('product-type').value = d.settings.productType;
+            if (d.settings?.model) document.getElementById('model-select').value = d.settings.model;
+            if (Array.isArray(d.settings?.researchGoals)) {
+              document.querySelectorAll('#research-goals input').forEach(el => { el.checked = d.settings.researchGoals.includes(el.value); });
+            }
+            S.surveyPackage = d.surveyPackage || (d.generatedQuestions ? {
+              questions: d.generatedQuestions,
+              guide: d.generatedGuide || null,
+              evidenceSummary: { confirmedFeatures: [], assumptions: [], unknowns: ['舊版專案未保存證據摘要'] }
+            } : null);
+            S.genQuestions = d.generatedQuestions || d.surveyPackage?.questions || [];
+            S.genGuide = d.generatedGuide || d.surveyPackage?.guide || null;
+            if (!Array.isArray(S.genQuestions)) throw new Error('專案缺少有效的 generatedQuestions');
             if (S.genQuestions.length) renderGeneratorResults();
-            toast('專案讀取成功！', 'success');
-          } catch { toast('讀取失敗：格式錯誤', 'error'); }
+            const migrationNote = d.schemaVersion >= 2 ? '' : '；已套用新版問卷規則';
+            toast(`專案讀取成功！共 ${S.genQuestions.length} 組 Kano 題目${migrationNote}`, 'success');
+          } catch (error) { toast(`讀取失敗：${error.message || '格式錯誤'}`, 'error'); }
+          finally { input.value = ''; }
         };
         r.readAsText(file);
       }
@@ -1652,11 +1991,29 @@
       function exportExcel() {
         if (!S.genQuestions.length) { toast('無題目可匯出', 'error'); return; }
         if (!window.XLSX) { toast('Excel 元件載入中，請稍後', 'error'); return; }
-        const ws1 = [['題組', '功能情境', 'AMIOR分類', '心理理由', '正向問句', '反向問句'], ...S.genQuestions.map(q => [q.id, q.feature, `${q.amior} (${q.categoryName})`, q.reason, q.positive, q.negative])];
+        const pkg = S.surveyPackage || {};
+        const ws1 = [['題組', '功能情境', 'AMIOR分類', '心理理由', '正向問句', '反向問句', '證據來源'], ...S.genQuestions.map(q => [q.id, q.feature, `${q.amior} (${q.categoryName})`, q.reason, q.positive, q.negative, q.evidence || ''])];
         const ws2 = [['題號', '功能特徵', '正向題目', '反向題目'], ...S.genQuestions.map((q, i) => [`Q${i + 1}`, q.feature, q.positive, q.negative])];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1), '題目設計總覽');
         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2), '題型');
+        if (pkg.experienceQuestions?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+          ['題號', '評估構面', '題目', '量表', '證據來源'],
+          ...pkg.experienceQuestions.map(q => [q.id, q.dimension, q.question, q.scale, q.evidence])
+        ]), '體驗評分題');
+        if (pkg.behaviorQuestions?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+          ['題號', '行為題', '選項', '證據來源'],
+          ...pkg.behaviorQuestions.map(q => [q.id, q.question, (q.options || []).join('｜'), q.evidence])
+        ]), '行為題');
+        if (pkg.openQuestions?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+          ['題號', '開放題', '研究目的'], ...pkg.openQuestions.map(q => [q.id, q.question, q.purpose])
+        ]), '開放題');
+        if (pkg.evidenceSummary) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+          ['類型', '內容'],
+          ...(pkg.evidenceSummary.confirmedFeatures || []).map(v => ['已確認功能', v]),
+          ...(pkg.evidenceSummary.assumptions || []).map(v => ['需人工確認', v]),
+          ...(pkg.evidenceSummary.unknowns || []).map(v => ['資訊不足', v])
+        ]), '證據摘要');
         XLSX.writeFile(wb, `Kano_Questions_${new Date().toISOString().split('T')[0]}.xlsx`);
         toast('Excel 匯出成功！', 'success');
       }
@@ -1664,7 +2021,22 @@
         if (!S.genQuestions.length) { toast('無題目可匯出', 'error'); return; }
         if (!window.docx) { toast('Word 套件載入中，請稍後', 'error'); return; }
         const { Document, Packer, Paragraph } = window.docx;
-        const children = []; let n = 1;
+        const pkg = S.surveyPackage || {};
+        const children = [new Paragraph({ text: 'Kano 與產品體驗問卷' })]; let n = 1;
+        (pkg.experienceQuestions || []).forEach(q => {
+          children.push(new Paragraph({ text: `${n}. ${q.question} *` }));
+          ['1. 非常不同意', '2. 不同意', '3. 普通', '4. 同意', '5. 非常同意'].forEach(o => children.push(new Paragraph({ text: o })));
+          children.push(new Paragraph({ text: '' })); n++;
+        });
+        (pkg.behaviorQuestions || []).forEach(q => {
+          children.push(new Paragraph({ text: `${n}. ${q.question} *` }));
+          (q.options || []).forEach((o, i) => children.push(new Paragraph({ text: `${String.fromCharCode(65 + i)}. ${o}` })));
+          children.push(new Paragraph({ text: '' })); n++;
+        });
+        (pkg.openQuestions || []).forEach(q => {
+          children.push(new Paragraph({ text: `${n}. ${q.question}` }));
+          children.push(new Paragraph({ text: '' })); n++;
+        });
         S.genQuestions.forEach(q => {
           children.push(new Paragraph({ text: `${n}. ${q.positive} *` }));
           ['A. 我非常喜歡', 'B. 我期望如此', 'C. 無所謂', 'D. 可以接受', 'E. 無法接受'].forEach(o => children.push(new Paragraph({ text: o })));
@@ -1679,7 +2051,7 @@
         URL.revokeObjectURL(a.href); toast('Word 匯出成功！請直接上傳至 Forms', 'success');
       }
       function showScreenshot() {
-        document.getElementById('screenshot-tbody').innerHTML = S.genQuestions.map(q => `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:10px;font-weight:700;">${q.id}</td><td style="padding:10px;">${q.feature || ''}</td><td style="padding:10px;">${q.positive || ''}</td><td style="padding:10px;">${q.negative || ''}</td></tr>`).join('');
+        document.getElementById('screenshot-tbody').innerHTML = S.genQuestions.map(q => `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:10px;font-weight:700;">${escapeHtml(q.id)}</td><td style="padding:10px;">${escapeHtml(q.feature || '')}</td><td style="padding:10px;">${escapeHtml(q.positive || '')}</td><td style="padding:10px;">${escapeHtml(q.negative || '')}</td></tr>`).join('');
         document.getElementById('screenshot-modal').style.display = 'flex';
       }
       function closeModal() { document.getElementById('screenshot-modal').style.display = 'none'; }
