@@ -1095,7 +1095,7 @@
             </div>
           </div>
           <div class="card" style="display:flex;flex-direction:column;gap:14px;">
-            <div class="card-title">③ Codex／GPT 題目生成設定</div>
+            <div class="card-title">③ AI 題目生成設定</div>
             <div style="display:flex;gap:8px;">
               <button class="btn btn-sm" style="flex:1;" onclick="saveProject()">💾 儲存專案</button>
               <label class="btn btn-sm" style="flex:1;cursor:pointer;justify-content:center;user-select:none;">
@@ -1103,15 +1103,14 @@
                 <input type="file" accept=".json" id="project-input" style="display:none;" onchange="loadProject(this)">
               </label>
             </div>
-            <a class="btn btn-sm" href="examples/Kano_Project_%E4%B8%B2%E7%87%92%E6%94%B6%E9%9B%86%E9%81%8A%E6%88%B2.json" download style="justify-content:center;text-decoration:none;">⬇️ 下載串燒遊戲範例專案</a>
             <div class="form-group" style="margin-bottom:0;">
-              <label>👤 Codex／ChatGPT 登入 <span id="auth-required" style="color:var(--red);float:right;">* 尚未確認</span></label>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <div id="auth-status" style="flex:1;min-width:180px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);">正在檢查本機 Codex 服務…</div>
-                <button class="btn btn-primary btn-sm" id="login-btn" type="button" onclick="loginCodex()">登入 ChatGPT</button>
-                <button class="btn btn-sm" id="logout-btn" type="button" onclick="logoutCodex()" style="display:none;">登出</button>
+              <label>🔑 Gemini API Key <span style="color:var(--red);float:right;">* 必填</span></label>
+              <div style="display:flex;gap:8px;">
+                <input type="password" id="api-key" placeholder="請輸入 Google Gemini API Key"
+                  oninput="saveApiKey(this.value)" style="flex:1;">
+                <button class="btn btn-sm" type="button" onclick="testApiConnection()">測試連線</button>
               </div>
-              <div class="field-hint">使用 Codex 的 ChatGPT 登入與訂閱額度，不需要 API Key。請透過「啟動 Kano Codex.cmd」開啟。</div>
+              <div class="field-hint">Key 只保留在目前分頁，不會寫入專案檔或瀏覽器儲存空間。</div>
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label>產品類型</label>
@@ -1138,11 +1137,12 @@
               </div>
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label>Codex 分析模型</label>
-              <select id="openai-model">
-                <option value="">正在取得本機 Codex 可用模型…</option>
+              <label>AI 模型</label>
+              <select id="model-select">
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash（品質優先）</option>
+                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite（額度／速度優先）</option>
               </select>
-              <div class="field-hint" id="model-status">模型會依目前登入帳戶與 Codex 版本動態載入；優先使用 Codex 模型。</div>
+              <div class="field-hint" id="model-status">輸入 API Key 後按「測試連線」，系統會讀取此 Key 實際可用的模型。</div>
             </div>
             <div class="form-group" style="margin-bottom:0;flex:1;display:flex;flex-direction:column;">
               <label>定義提詞（Prompt）</label>
@@ -1430,14 +1430,12 @@
         _currentDataVersion: 0,
         _reportDataVersion: -1
       };
-      let codexAuthenticated = false;
 
       // ══════ 初始化 ══════
       document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('prompt-text').value = SYSTEM_PROMPT;
         document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
-        checkCodexAuth();
-        loadCodexModels();
+        // ★ 不自動帶入 API Key，每次由使用者手動輸入
         document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
         initScatterChart();
       });
@@ -1456,93 +1454,11 @@
         if (tab === 'data') document.getElementById('json-view').textContent = JSON.stringify(S.data, null, 2);
         if (tab === 'survey') renderSurvey();
       }
-
-      async function checkCodexAuth(showError = false) {
-        const status = document.getElementById('auth-status');
-        const required = document.getElementById('auth-required');
-        const loginBtn = document.getElementById('login-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        try {
-          const res = await fetch('/api/auth/status', { cache: 'no-store' });
-          const body = await res.json();
-          if (!res.ok) throw new Error(body.error || `狀態碼 ${res.status}`);
-          codexAuthenticated = body.authenticated === true;
-          if (codexAuthenticated) {
-            const identity = [body.email, body.planType].filter(Boolean).join(' · ');
-            status.textContent = `✅ 已登入 ChatGPT${identity ? `（${identity}）` : ''}`;
-            status.style.color = 'var(--green)';
-            required.textContent = '已連線'; required.style.color = 'var(--green)';
-            loginBtn.style.display = 'none'; logoutBtn.style.display = 'inline-flex';
-          } else {
-            status.textContent = '尚未登入 ChatGPT'; status.style.color = 'var(--text2)';
-            required.textContent = '* 需要登入'; required.style.color = 'var(--red)';
-            loginBtn.style.display = 'inline-flex'; logoutBtn.style.display = 'none';
-          }
-          return codexAuthenticated;
-        } catch (error) {
-          codexAuthenticated = false;
-          status.textContent = '此頁需要本機 Codex 服務；請下載專案並執行「啟動 Kano Codex.cmd」';
-          status.style.color = 'var(--red)';
-          required.textContent = '* 服務未啟動'; required.style.color = 'var(--red)';
-          loginBtn.style.display = 'none'; logoutBtn.style.display = 'none';
-          if (showError) toast('無法連到本機 Codex 服務，請執行「啟動 Kano Codex.cmd」後再試。', 'error');
-          return false;
-        }
-      }
-
-      async function loadCodexModels() {
-        const select = document.getElementById('openai-model');
-        try {
-          const res = await fetch('/api/models', { cache: 'no-store' });
-          const body = await res.json();
-          if (!res.ok || !Array.isArray(body.models) || !body.models.length) throw new Error(body.error || '無可用模型');
-          const preferred = body.models.find(model => model.id === 'gpt-5.3-codex')
-            || body.models.find(model => /codex/i.test(model.id))
-            || body.models.find(model => model.isDefault)
-            || body.models[0];
-          select.replaceChildren(...body.models.map(model => {
-            const option = document.createElement('option');
-            option.value = model.id;
-            option.textContent = `${model.displayName}${model.id === preferred.id ? '（建議）' : ''}`;
-            option.selected = model.id === preferred.id;
-            return option;
-          }));
-          document.getElementById('model-status').textContent = `本機 Codex 回報 ${body.models.length} 個可用模型；目前使用 ${preferred.id}`;
-        } catch {
-          select.innerHTML = '<option value="">請先啟動本機 Codex 服務</option>';
-        }
-      }
-
-      async function loginCodex() {
-        const btn = document.getElementById('login-btn');
-        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 準備登入…';
-        try {
-          const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-          const body = await res.json();
-          if (!res.ok) throw new Error(body.error || '無法啟動登入');
-          if (body.authenticated) { await checkCodexAuth(); await loadCodexModels(); toast('已登入 ChatGPT', 'success'); return; }
-          const authWindow = window.open(body.authUrl, '_blank', 'noopener,noreferrer');
-          if (!authWindow) toast('瀏覽器封鎖登入視窗，請允許彈出視窗後重試', 'error');
-          else toast('請在新視窗完成 ChatGPT 登入', 'info');
-          for (let i = 0; i < 120; i++) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            if (await checkCodexAuth()) { await loadCodexModels(); toast('ChatGPT 登入成功', 'success'); return; }
-          }
-          throw new Error('登入等待逾時，請重新嘗試');
-        } catch (error) { toast(`登入失敗：${error.message}`, 'error'); }
-        finally { btn.disabled = false; btn.textContent = '登入 ChatGPT'; }
-      }
-
-      async function logoutCodex() {
-        try {
-          const res = await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-          const body = await res.json();
-          if (!res.ok) throw new Error(body.error || '登出失敗');
-          await checkCodexAuth(); toast('已登出 ChatGPT', 'success');
-        } catch (error) { toast(error.message, 'error'); }
-      }
+      function saveApiKey(v) { /* API Key 不儲存，每次手動輸入 */ }
 
       const MAX_FILES = 12;
+      const MAX_VIDEO_PAYLOAD_BYTES = 14 * 1024 * 1024;
+      const MAX_IMAGE_PAYLOAD_BYTES = 70 * 1024 * 1024;
 
       function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>'"]/g, ch => ({
@@ -1598,7 +1514,7 @@
         if (target) URL.revokeObjectURL(target.url);
         S.files = S.files.filter(f => f.id !== id); renderFilePreviews();
       }
-      function fileToDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result); r.onerror = rej; }); }
+      function fileToBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; }); }
 
       function compressImage(file) {
         return new Promise((resolve, reject) => {
@@ -1623,112 +1539,149 @@
         });
       }
 
-      async function sampleVideoFrames(file, frameCount = 3) {
-        if (file.size > 250 * 1024 * 1024) throw new Error(`${file.name} 超過 250 MB，請先縮短影片或改上傳關鍵截圖。`);
-        const url = URL.createObjectURL(file);
-        const video = document.createElement('video');
-        video.muted = true; video.preload = 'metadata'; video.src = url;
-        try {
-          await new Promise((resolve, reject) => { video.onloadedmetadata = resolve; video.onerror = () => reject(new Error(`${file.name} 無法讀取`)); });
-          if (!Number.isFinite(video.duration) || video.duration <= 0) throw new Error(`${file.name} 無法取得影片長度`);
-          const frames = [];
-          const times = Array.from({ length: frameCount }, (_, i) => video.duration * (i + 1) / (frameCount + 1));
-          for (const time of times) {
-            video.currentTime = Math.min(time, Math.max(0, video.duration - 0.05));
-            await new Promise((resolve, reject) => { video.onseeked = resolve; video.onerror = () => reject(new Error(`${file.name} 擷取影格失敗`)); });
-            const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-            canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-            frames.push(canvas.toDataURL('image/jpeg', 0.82));
-          }
-          return frames;
-        } finally { URL.revokeObjectURL(url); video.removeAttribute('src'); video.load(); }
-      }
-
-      async function buildCodexContent(context, onProgress) {
-        const content = [{ type: 'input_text', text: context }];
+      async function prepareMediaParts(onProgress) {
+        const hasVideo = S.files.some(item => item.type === 'video');
+        const limit = hasVideo ? MAX_VIDEO_PAYLOAD_BYTES : MAX_IMAGE_PAYLOAD_BYTES;
+        const parts = [];
+        let total = 0;
         for (let i = 0; i < S.files.length; i++) {
           const item = S.files[i];
           onProgress?.(i + 1, S.files.length, item.file.name);
-          if (item.type === 'image') {
-            const prepared = await compressImage(item.file);
-            if (prepared.size > 8 * 1024 * 1024) throw new Error(`${item.file.name} 壓縮後仍超過 8 MB，請改用較小圖片。`);
-            content.push({ type: 'input_text', text: `附件圖片：${item.file.name}` });
-            content.push({ type: 'input_image', image_url: await fileToDataURL(prepared), detail: 'auto' });
-          } else {
-            const frames = await sampleVideoFrames(item.file, 3);
-            content.push({ type: 'input_text', text: `影片 ${item.file.name} 的代表影格（依時間順序；不是完整影片內容）：` });
-            frames.forEach(image_url => content.push({ type: 'input_image', image_url, detail: 'auto' }));
+          const prepared = item.type === 'image' ? await compressImage(item.file) : item.file;
+          total += prepared.size;
+          if (total > limit) {
+            const hint = hasVideo ? '請縮短影片、降低解析度，或只保留重要截圖。' : '請減少圖片數量。';
+            throw new Error(`附件處理後為 ${formatBytes(total)}，安全上限為 ${formatBytes(limit)}。${hint}`);
+          }
+          parts.push({ inlineData: { mimeType: prepared.type || item.file.type, data: await fileToBase64(prepared) } });
+        }
+        return parts;
+      }
+
+      // ══════ Gemini API ══════
+      function normalizeModelName(name) {
+        return String(name || '').replace(/^models\//, '');
+      }
+
+      function isSurveyGenerationModel(model) {
+        const id = normalizeModelName(model?.name);
+        const supportsGenerate = model?.supportedGenerationMethods?.includes('generateContent');
+        // Exclude image, audio, live and other specialized Flash variants. The survey
+        // flow requires a general multimodal text-output model with JSON mode.
+        const specialized = /(?:tts|native|audio|image|live|robotics)/i.test(id);
+        return supportsGenerate && !specialized && /^gemini-(?:(?:\d+(?:\.\d+)*)-)?flash(?:-lite)?(?:-(?:latest|preview(?:-[\w-]+)?))?$/.test(id);
+      }
+
+      function modelPreferenceScore(id, requested) {
+        const wantsLite = /flash-lite/.test(requested);
+        const isLite = /flash-lite/.test(id);
+        const version = id.match(/^gemini-(\d+(?:\.\d+)*)-/)?.[1]
+          ?.split('.').reduce((score, part, index) => score + Number(part) * Math.pow(100, 2 - index), 0) || 0;
+        let score = version;
+        if (id === requested) score += 1000000;
+        if (isLite === wantsLite) score += 100000;
+        if (!/preview|experimental|exp/.test(id)) score += 10000;
+        if (/latest$/.test(id)) score += 1000;
+        return score;
+      }
+
+      function modelDisplayName(id, displayName) {
+        const suffix = /flash-lite/.test(id) ? '（額度／速度優先）' : '（品質優先）';
+        return `${displayName || id} ${suffix}`;
+      }
+
+      async function refreshAvailableModels(apiKey, requestedModel) {
+        if (!apiKey?.trim()) throw new Error('請先輸入有效的 Gemini API Key。');
+        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000', {
+          headers: { 'x-goog-api-key': apiKey.trim() }
+        });
+        if (!res.ok) throw readableApiError(res.status, await res.json().catch(() => ({})), '模型清單');
+        const data = await res.json();
+        const discovered = (data.models || [])
+          .filter(isSurveyGenerationModel)
+          .map(model => ({ id: normalizeModelName(model.name), displayName: model.displayName }))
+          .filter((model, index, all) => all.findIndex(item => item.id === model.id) === index);
+        // Google may keep retired preview IDs in ListModels for a while. Prefer
+        // stable/latest endpoints whenever at least one is available.
+        const stable = discovered.filter(model => !/preview|experimental|exp/.test(model.id));
+        const available = (stable.length ? stable : discovered)
+          .sort((a, b) => modelPreferenceScore(b.id, requestedModel) - modelPreferenceScore(a.id, requestedModel));
+        if (!available.length) {
+          throw new Error('此 API Key 的模型清單中沒有可用的一般 Gemini Flash 文字模型。請確認這是 Google AI Studio 的 Gemini API Key，而不是其他服務的金鑰。');
+        }
+        const selected = available.find(model => model.id === requestedModel) || available[0];
+        const select = document.getElementById('model-select');
+        select.innerHTML = available.map(model =>
+          `<option value="${escapeHtml(model.id)}">${escapeHtml(modelDisplayName(model.id, model.displayName))}</option>`
+        ).join('');
+        select.value = selected.id;
+        document.getElementById('model-status').textContent = `此 Key 可用 ${available.length} 個問卷模型；目前使用 ${selected.id}`;
+        if (requestedModel && selected.id !== requestedModel) {
+          toast(`原模型 ${requestedModel} 對此 Key 不可用，已自動改用 ${selected.id}`, 'info');
+        }
+        return selected.id;
+      }
+
+      function readableApiError(status, body, model) {
+        const message = body?.error?.message || `HTTP ${status}`;
+        const reason = body?.error?.details?.find(d => d.reason)?.reason || '';
+        if (/leaked/i.test(message)) return new Error('此 API Key 已被 Google 判定外洩並停用，請到 Google AI Studio 建立新 Key。');
+        if (reason === 'API_KEY_INVALID' || /API key not valid/i.test(message)) return new Error('API Key 無效，請確認沒有多貼空白，並使用正確專案的 Gemini API Key。');
+        if (status === 400 && /FAILED_PRECONDITION|billing|country|region/i.test(`${reason} ${message}`)) return new Error('此專案目前無法使用 Gemini API，請在 Google AI Studio 檢查地區與付費設定。');
+        if (status === 400) return new Error(`請求內容不被接受，常見原因是素材過大或格式不支援。Google 回覆：${message}`);
+        if (status === 402) return new Error('API 預付額度已用完，請補充額度或開啟自動儲值後再試。');
+        if (status === 401 || status === 403) return new Error('API Key 沒有此模型的權限，或 Key 的網站／API 限制阻擋了此頁面。請檢查 Google Cloud Key 限制。');
+        if (status === 404) return new Error(`Google 找不到模型 ${model}。請先按「測試連線」重新讀取此 API Key 的可用模型。`);
+        if (status === 429) return new Error('API 的每分鐘、每日或花費額度已達上限。請稍後重試，或改用 Flash-Lite。');
+        if (status >= 500) return new Error(`Gemini 服務暫時異常（${status}），請稍後重試。`);
+        return new Error(`Gemini API 錯誤（${status}）：${message}`);
+      }
+
+      async function callGemini(payload, apiKey, model) {
+        if (!apiKey || !apiKey.trim()) throw new Error('請先輸入有效的 Gemini API Key。');
+        const delays = [1000, 3000, 8000];
+        let lastError = null;
+        for (let i = 0; i <= delays.length; i++) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 120000);
+          try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey.trim() },
+              body: JSON.stringify(payload),
+              signal: controller.signal
+            });
+            clearTimeout(timeout);
+            if (res.ok) return await res.json();
+            const errBody = await res.json().catch(() => ({}));
+            const retryable = res.status === 408 || res.status === 429 || res.status >= 500;
+            lastError = readableApiError(res.status, errBody, model);
+            if (!retryable || i === delays.length) throw lastError;
+          } catch (e) {
+            clearTimeout(timeout);
+            if (e.name === 'AbortError') lastError = new Error('請求超過 120 秒，通常是影片過長或服務忙碌。請減少素材後重試。');
+            else if (e instanceof TypeError) lastError = new Error('瀏覽器無法連到 Gemini API，請檢查網路、公司防火牆或瀏覽器擴充功能。');
+            else lastError = e;
+            const retryableMessage = /暫時|額度|超過 120 秒|無法連到/.test(lastError.message);
+            if (!retryableMessage || i === delays.length) throw lastError;
+          }
+          if (i < delays.length) {
+            const wait = delays[i] + Math.floor(Math.random() * 500);
+            toast(`連線暫時失敗，${Math.ceil(wait / 1000)} 秒後自動重試…`, 'info');
+            await new Promise(r => setTimeout(r, wait));
           }
         }
-        return content;
+        throw lastError || new Error('無法連線至 AI 伺服器，請確認網路狀態或稍後再試。');
       }
 
-      const GUIDE_ITEM_SCHEMA = {
-        type: 'object', additionalProperties: false,
-        properties: { response: { type: 'string' }, category: { type: 'string' }, reason: { type: 'string' } },
-        required: ['response', 'category', 'reason']
-      };
-      const GUIDE_SCHEMA = {
-        type: 'object', additionalProperties: false,
-        properties: {
-          positive_analysis: { type: 'array', minItems: 5, maxItems: 5, items: GUIDE_ITEM_SCHEMA },
-          negative_analysis: { type: 'array', minItems: 5, maxItems: 5, items: GUIDE_ITEM_SCHEMA }
-        }, required: ['positive_analysis', 'negative_analysis']
-      };
-      const KANO_ITEM_SCHEMA = {
-        type: 'object', additionalProperties: false,
-        properties: {
-          id: { type: 'integer' }, feature: { type: 'string' }, amior: { type: 'string', enum: ['A', 'O', 'M', 'I', 'R', 'Q'] },
-          categoryName: { type: 'string' }, reason: { type: 'string' }, positive: { type: 'string' }, negative: { type: 'string' },
-          evidence: { type: 'string' }, execution_advice: { type: 'string' }, modification_method: { type: 'string' }
-        }, required: ['id', 'feature', 'amior', 'categoryName', 'reason', 'positive', 'negative', 'evidence', 'execution_advice', 'modification_method']
-      };
-      const QUESTION_SET_SCHEMA = {
-        type: 'object', additionalProperties: false,
-        properties: {
-          evidenceSummary: {
-            type: 'object', additionalProperties: false,
-            properties: { confirmedFeatures: { type: 'array', items: { type: 'string' } }, assumptions: { type: 'array', items: { type: 'string' } }, unknowns: { type: 'array', items: { type: 'string' } } },
-            required: ['confirmedFeatures', 'assumptions', 'unknowns']
-          },
-          experienceQuestions: { type: 'array', minItems: 6, items: { type: 'object', additionalProperties: false, properties: { id: { type: 'string' }, dimension: { type: 'string' }, question: { type: 'string' }, scale: { type: 'string' }, evidence: { type: 'string' } }, required: ['id', 'dimension', 'question', 'scale', 'evidence'] } },
-          behaviorQuestions: { type: 'array', minItems: 2, items: { type: 'object', additionalProperties: false, properties: { id: { type: 'string' }, question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } }, evidence: { type: 'string' } }, required: ['id', 'question', 'options', 'evidence'] } },
-          openQuestions: { type: 'array', minItems: 2, items: { type: 'object', additionalProperties: false, properties: { id: { type: 'string' }, question: { type: 'string' }, purpose: { type: 'string' } }, required: ['id', 'question', 'purpose'] } },
-          questions: { type: 'array', minItems: 4, items: KANO_ITEM_SCHEMA }, guide: GUIDE_SCHEMA
-        }, required: ['evidenceSummary', 'experienceQuestions', 'behaviorQuestions', 'openQuestions', 'questions', 'guide']
-      };
-      const REFINE_ALL_SCHEMA = { type: 'object', additionalProperties: false, properties: { questions: { type: 'array', minItems: 1, items: KANO_ITEM_SCHEMA }, guide: GUIDE_SCHEMA }, required: ['questions', 'guide'] };
-      const REFINE_ONE_SCHEMA = { type: 'object', additionalProperties: false, properties: { refinedQuestion: KANO_ITEM_SCHEMA, guide: GUIDE_SCHEMA }, required: ['refinedQuestion', 'guide'] };
-
-      function extractCodexText(result) {
-        const text = (result?.output || []).flatMap(item => item?.content || []).filter(part => part?.type === 'output_text').map(part => part.text || '').join('').trim();
-        if (text) return text;
-        const refusal = (result?.output || []).flatMap(item => item?.content || []).find(part => part?.type === 'refusal')?.refusal;
-        throw new Error(refusal || result?.error?.message || 'Codex 沒有回傳可用文字。');
-      }
-
-      async function callCodex({ instructions, content, schemaName, schema }, model) {
-        if (!codexAuthenticated && !(await checkCodexAuth(true))) throw new Error('請先登入 ChatGPT。');
-        if (!model) throw new Error('目前沒有可用模型，請重新整理模型清單。');
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 240000);
+      async function testApiConnection() {
+        const apiKey = document.getElementById('api-key').value.trim();
+        const requestedModel = document.getElementById('model-select').value;
+        if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
         try {
-          const res = await fetch('/api/codex', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
-            body: JSON.stringify({ model, instructions, content, schemaName, schema })
-          });
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(body.error || `本機 Codex 服務錯誤（${res.status}）`);
-          if (body.modelRequested && body.modelUsed && body.modelRequested !== body.modelUsed) toast(`模型 ${body.modelRequested} 不可用，已改用 ${body.modelUsed}`, 'info');
-          return body;
-        } catch (error) {
-          if (error.name === 'AbortError') throw new Error('Codex 分析超過 240 秒，請減少附件後重試。');
-          if (error instanceof TypeError) throw new Error('無法連到本機 Codex 服務，請執行「啟動 Kano Codex.cmd」。');
-          throw error;
-        } finally { clearTimeout(timeout); }
+          const model = await refreshAvailableModels(apiKey, requestedModel);
+          toast(`連線成功：${model}`, 'success');
+        } catch (error) { toast(`連線失敗：${error.message}`, 'error'); }
       }
       function parseAIJson(text) {
         let clean = text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
@@ -1754,25 +1707,38 @@
 
       // ══════ 生成題目 ══════
       async function generateQuestions() {
+        const apiKey = document.getElementById('api-key').value.trim();
         const desc = document.getElementById('description').value.trim();
         const prompt = document.getElementById('prompt-text').value;
-        const model = document.getElementById('openai-model').value;
+        let model = document.getElementById('model-select').value;
         const productType = document.getElementById('product-type').value;
         const goals = getSelectedGoals();
         const btn = document.getElementById('gen-btn');
-        if (!(await checkCodexAuth(true))) return;
-        if (!model) { toast('請先取得可用的 Codex 模型', 'error'); return; }
+        if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
         if (!desc && !S.files.length) { toast('請輸入描述或上傳素材', 'error'); return; }
         if (!goals.length) { toast('請至少選擇一個研究目標', 'error'); return; }
         btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 分析內容中…';
         try {
-          const context = `產品類型：${productType}\n研究目標：${goals.join('、')}\n產品描述：${desc || '未提供，請只根據附件中可確認的內容分析。'}\n請先整理證據，再生成完整混合問卷。影片附件只提供代表影格，不可宣稱已觀察到影格以外的流程。`;
-          const content = await buildCodexContent(context, (current, total, name) => {
+          btn.innerHTML = '<span class="spinner"></span> 確認此 Key 的可用模型…';
+          model = await refreshAvailableModels(apiKey, model);
+          const mediaParts = await prepareMediaParts((current, total, name) => {
             btn.innerHTML = `<span class="spinner"></span> 處理附件 ${current}/${total}：${escapeHtml(name)}`;
           });
-          btn.innerHTML = '<span class="spinner"></span> Codex 分析與設計問卷中…';
-          const result = await callCodex({ instructions: prompt, content, schemaName: 'kano_survey_package', schema: QUESTION_SET_SCHEMA }, model);
-          const parsed = parseAIJson(extractCodexText(result));
+          const context = `產品類型：${productType}\n研究目標：${goals.join('、')}\n產品描述：${desc || '未提供，請只根據附件中可確認的內容分析。'}\n請先整理證據，再生成完整混合問卷。`;
+          const payload = {
+            contents: [{ role: 'user', parts: [{ text: context }, ...mediaParts] }],
+            systemInstruction: { parts: [{ text: prompt }] },
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.35 }
+          };
+          btn.innerHTML = '<span class="spinner"></span> AI 分析與設計問卷中…';
+          const result = await callGemini(payload, apiKey, model);
+          const candidate = result.candidates?.[0];
+          const text = candidate?.content?.parts?.map(part => part.text || '').join('').trim();
+          if (!text) {
+            const reason = result.promptFeedback?.blockReason || candidate?.finishReason || 'UNKNOWN';
+            throw new Error(`AI 沒有回傳可用內容（${reason}）。請移除可能觸發安全限制的素材或改寫描述。`);
+          }
+          const parsed = parseAIJson(text);
           let qs = [], guide = null;
           if (Array.isArray(parsed)) qs = parsed;
           else if (parsed.questions) { qs = parsed.questions; guide = parsed.guide; }
@@ -1939,10 +1905,10 @@
       // AI 優化題目（完整 null 防護 + 正確 ID 比對）
       // ══════════════════════════════════════════
       async function refineQuestion() {
-        const model = document.getElementById('openai-model').value;
+        const apiKey = document.getElementById('api-key').value.trim();
+        let model = document.getElementById('model-select').value;
         const instr = document.getElementById('refine-input').value.trim();
-        if (!(await checkCodexAuth(true))) return;
-        if (!model) { toast('請先取得可用的 Codex 模型', 'error'); return; }
+        if (!apiKey) { toast('請先輸入 Gemini API Key', 'error'); return; }
         if (!instr) { toast('請輸入修改需求', 'error'); return; }
         if (!S.genQuestions.length) { toast('請先生成題目', 'error'); return; }
         const btn = document.getElementById('refine-submit-btn');
@@ -1963,13 +1929,15 @@
           sysPrompt = `你是資深PM，請根據使用者需求深度修改指定 Kano 題目，題目必須具體情境化。${fieldSpec}。${guideReq}\n需修改的題目：${JSON.stringify(target, null, 2)}\n全部題目列表（供判讀指南參考）：${JSON.stringify(S.genQuestions, null, 2)}\n嚴格回傳 JSON：{"refinedQuestion":{...完整欄位...},"guide":{...}}，不得包含任何其他文字。`;
         }
         try {
-          const result = await callCodex({
-            instructions: sysPrompt,
-            content: [{ type: 'input_text', text: `修改需求：${instr}` }],
-            schemaName: isAll ? 'kano_refine_all' : 'kano_refine_one',
-            schema: isAll ? REFINE_ALL_SCHEMA : REFINE_ONE_SCHEMA
-          }, model);
-          const parsed = parseAIJson(extractCodexText(result));
+          model = await refreshAvailableModels(apiKey, model);
+          const result = await callGemini({
+            contents: [{ parts: [{ text: `修改需求：${instr}` }] }],
+            systemInstruction: { parts: [{ text: sysPrompt }] },
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.3 }
+          }, apiKey, model);
+          const text = result.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
+          if (!text) throw new Error('AI 未回傳文字');
+          const parsed = parseAIJson(text);
 
           // guide 驗證：只要有 5 個項目且每個有 response+category 就接受（放寬 reason 強制要求）
           const validG = g => {
@@ -2035,7 +2003,7 @@
           settings: {
             productType: document.getElementById('product-type').value,
             researchGoals: getSelectedGoals(),
-            model: document.getElementById('openai-model').value
+            model: document.getElementById('model-select').value
           },
           surveyPackage: S.surveyPackage,
           generatedQuestions: S.genQuestions,
@@ -2062,10 +2030,7 @@
               ? d.prompt
               : SYSTEM_PROMPT;
             if (d.settings?.productType) document.getElementById('product-type').value = d.settings.productType;
-            if (d.settings?.model) {
-              const select = document.getElementById('openai-model');
-              if ([...select.options].some(option => option.value === d.settings.model)) select.value = d.settings.model;
-            }
+            if (d.settings?.model) document.getElementById('model-select').value = d.settings.model;
             if (Array.isArray(d.settings?.researchGoals)) {
               document.querySelectorAll('#research-goals input').forEach(el => { el.checked = d.settings.researchGoals.includes(el.value); });
             }

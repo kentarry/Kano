@@ -5,11 +5,6 @@ on:
     branches: [main]
     paths:
       - index.html
-      - server.mjs
-      - package.json
-      - README.md
-      - examples/**
-      - '啟動 Kano Codex.cmd'
       - scripts/test-static.mjs
       - .github/workflows/pages.yml
   workflow_dispatch:
@@ -37,10 +32,8 @@ jobs:
           test -s index.html
           grep -q '<title>Kano 模型問卷分析工具</title>' index.html
           node scripts/test-static.mjs
-          node --check server.mjs
           mkdir -p _site
           cp index.html _site/index.html
-          cp -R examples _site/examples
           touch _site/.nojekyll
 
       - name: Configure GitHub Pages
